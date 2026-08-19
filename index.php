@@ -34,6 +34,7 @@ if (isset($_SESSION['usuario_id'])) {
 
         <div class="ods-card">
             <strong>♥ Educação de qualidade<br>para todos!</strong>
+            <span>ODS 4 + ODS 5</span>
         </div>
     </section>
 
