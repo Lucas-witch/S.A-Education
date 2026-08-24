@@ -3,8 +3,8 @@
 :root {
     --purple: #35206f;
     --purple-2: #4b2a91;
-    --pink: #ec3f8a;
-    --pink-dark: #d72e77;
+    --pink: #c7f1d6;
+    --pink-dark: #6fd499;
     --pink-soft: #fff0f7;
     --text: #1f1b38;
     --muted: #69657b;
@@ -84,7 +84,7 @@ button, input, select { font: inherit; }
 }
 
 .mini-logo { color: var(--purple); font-size: 22px; margin-bottom: 36px; }
-.mini-logo span { color: var(--pink); font-weight: 500; }
+.mini-logo span { color: var(--pink-dark); font-weight: 500; }
 
 .welcome-copy { text-align: left; max-width: 475px; margin: auto; }
 .welcome-copy h1 { color: var(--purple); font-size: clamp(30px, 4vw, 40px); line-height: 1.12; margin: 0 0 12px; }
@@ -108,7 +108,7 @@ button, input, select { font: inherit; }
     transition: .2s ease; margin-top: 12px;
 }
 .btn:hover { transform: translateY(-1px); }
-.btn-primary { background: linear-gradient(90deg, var(--pink), #ee4d93); color: white; box-shadow: 0 9px 20px rgba(236,63,138,.18); }
+.btn-primary { background: linear-gradient(90deg, var(--pink), var(--pink-dark) ); color: white; box-shadow: 0 9px 20px rgba(236,63,138,.18); }
 .btn-outline { background: white; color: var(--purple); border: 1.5px solid var(--purple); }
 .compact { width: auto; padding: 0 22px; min-height: 45px; margin: 0; }
 
