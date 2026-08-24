@@ -1,6 +1,6 @@
 <?php require 'includes/auth.php'; ?>
 <!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Sala — Matemática Avançada</title><link rel="stylesheet" href="assets/css/style.css"></head><body><div class="app"><?php require 'includes/header.php'; ?><main class="main">
+<title>Sala — Matemática Avançada</title><link rel="stylesheet" href="assets/css/estilo.css"></head><body><div class="app"><?php require 'includes/header.php'; ?><main class="main">
 <header class="topbar"><a href="salas.php">← Voltar</a><div class="top-actions"><button class="icon-btn">↗</button><button class="icon-btn">⋮</button></div></header>
 <section class="room-banner"><div class="big-icon">π</div><div><h1 style="margin:0 0 7px;font-size:20px">Matemática Avançada</h1><p style="margin:0;font-size:12px">Prof. Lucas · 24 alunos · Matemática</p></div></section>
 <nav class="tabs"><a class="active">Sobre</a><a>Aulas</a><a>Quiz</a><a>Membros</a></nav>

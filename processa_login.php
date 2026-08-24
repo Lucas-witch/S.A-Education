@@ -2,12 +2,16 @@
 declare(strict_types=1);
 
 session_start();
+require_once 'includes/helpers.php';
 require_once 'conexao.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: login.php');
     exit;
 }
+
+// Verifica CSRF token
+verify_csrf($_POST['csrf'] ?? '');
 
 $login = trim($_POST['login'] ?? '');
 $senha = $_POST['senha'] ?? '';

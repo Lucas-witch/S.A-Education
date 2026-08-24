@@ -3,8 +3,10 @@ const ASSETS = [
     '/',
     '/index.html',
     '/manifest.json',
-    '/logo_SAeducation_pocket.png',
-    '/logo_SAeducation.png'
+    '/assets/images/logo_SAeducation_pocket.png',
+    '/assets/images/logo_SAeducation.png',
+    '/assets/css/estilo.css',
+    '/assets/js/app.js'
 ];
 
 self.addEventListener('install', (e) => {

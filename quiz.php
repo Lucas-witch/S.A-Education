@@ -1,6 +1,6 @@
 <?php require 'includes/auth.php'; ?>
 <!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Quiz</title><link rel="stylesheet" href="assets/css/style.css"></head><body><div class="app"><?php require 'includes/header.php'; ?><main class="main">
+<title>Quiz</title><link rel="stylesheet" href="assets/css/estilo.css"></head><body><div class="app"><?php require 'includes/header.php'; ?><main class="main">
 <header class="topbar"><a href="index.php">← Voltar</a><div><strong>Quiz</strong></div><span style="color:#54a13f">◷ 00:20</span></header>
 <section class="question"><p style="font-size:12px">Pergunta 2 de 10</p><div class="progress"><span></span></div>
 <h2>Qual é a capital do Brasil?</h2>

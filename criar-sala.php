@@ -1,6 +1,6 @@
 <?php require 'includes/auth.php'; ?>
 <!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Criar Sala</title><link rel="stylesheet" href="assets/css/style.css"></head><body><div class="app"><?php require 'includes/header.php'; ?><main class="main">
+<title>Criar Sala</title><link rel="stylesheet" href="assets/css/estilo.css"></head><body><div class="app"><?php require 'includes/header.php'; ?><main class="main">
 <header class="topbar"><div><h1>Criar Sala</h1><p>Monte um espaço para sua turma.</p></div></header>
 <form class="card form-card" action="#" method="post">
 <div style="text-align:center;font-size:48px;margin-bottom:20px">👥</div>
