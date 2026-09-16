@@ -6,6 +6,7 @@
         <meta name="viewport" content="width=device-width,initial-scale=1.0">
         <title>Entrar em uma sala</title>
         <link rel="stylesheet" href="assets/css/estilo.css">
+        <link rel="stylesheet" href="assets/css/sala_config.css">
     </head>
     <body>
         <div class="app"><?php require 'includes/header.php'; ?>

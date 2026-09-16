@@ -19,6 +19,7 @@ require_once 'includes/helpers.php';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>S.A Education | Entrar</title>
     <link rel="stylesheet" href="assets/css/estilo.css">
+    <link rel="stylesheet" href="assets/css/login-cadastro.css">
 </head>
 <body>
 <main class="form-page">
@@ -26,8 +27,8 @@ require_once 'includes/helpers.php';
         <a class="back" href="index.php">←</a>
 
         <div class="page-title">
-            <div class="login-icon">🔐</div>
-            <h1>Bem-vindo de volta!</h1>
+            <div class="login-icon"><img src="assets/images/logo-app.png" alt="Logotype"></div>
+            <h1>Seja bem vindo!</h1>
             <span>Entre na sua conta para continuar aprendendo.</span>
         </div>
 
@@ -41,16 +42,16 @@ require_once 'includes/helpers.php';
 
         <form action="processa_login.php" method="POST" autocomplete="on">
             <?php echo '<input type="hidden" name="csrf" value="' . esc(csrf_token()) . '">'; ?>
-            <label>E-mail ou nome de usuário
+            <label>E-mail ou nome de usuário:
                 <input type="text" name="login" placeholder="Digite seu e-mail ou usuário" required autofocus>
             </label>
 
-            <label>Senha
+            <label>Senha:
                 <input type="password" name="senha" placeholder="Digite sua senha" required>
             </label>
 
             <div class="form-row">
-                <label class="check"><input type="checkbox" name="lembrar"> Lembrar de mim</label>
+                <label class="check"><input type="checkbox" name="lembrar"> Lembrar de mim?</label>
                 <a href="#" class="small-link">Esqueci minha senha</a>
             </div>
 

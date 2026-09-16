@@ -1,0 +1,281 @@
+.login-page,
+.form-page {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 25px;
+    background: url('../images/fundo.png') center / cover fixed;
+}
+
+.login-wrap {
+    width: min(930px, 100%);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+}
+
+.brand-side {
+    padding: 45px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.brand-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.brand-logo img {
+    display: block;
+    width: min(260px, 100%);
+    height: auto;
+}
+
+.brand-logo small {
+    font-family: Inter, Arial, sans-serif;
+    display: block;
+    font-size: 16px;
+    letter-spacing: 7px;
+    margin-top: -12px;
+}
+
+.wave {
+    font-size: 55px;
+    margin-top: 25px;
+}
+
+.wave img,
+.login-icon img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+}
+
+.wave img {
+    max-width: 120px;
+}
+
+.login-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+}
+
+.login-icon img {
+    width: 180px;
+    max-width: 100%;
+}
+
+.auth {
+    padding: 45px;
+}
+
+.auth h1 {
+    margin: 0 0 8px;
+    font-size: 22px;
+}
+
+.auth p {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.auth .form-group {
+    margin-top: 18px;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label,
+.form-card label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 7px;
+}
+
+.form-control,
+.form-card input,
+.form-card select,
+.auth input,
+.auth select {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: #fff;
+    padding: 12px 13px;
+    outline: none;
+}
+
+.grid {
+    display: grid;
+    gap: 14px;
+}
+
+.grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.btn {
+    border: 0;
+    border-radius: 12px;
+    padding: 12px 20px;
+    background: var(--purple);
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.btn.full,
+.btn.btn-primary {
+    width: 100%;
+}
+
+.auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 11px;
+    margin: 18px 0;
+}
+
+.auth-divider:before,
+.auth-divider:after {
+    content: "";
+    height: 1px;
+    background: var(--border);
+    flex: 1;
+}
+
+.form-card {
+    width: min(700px, 100%);
+    margin: 0 auto;
+    padding: 28px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+.form-card .back {
+    display: inline-block;
+    margin-bottom: 20px;
+    color: var(--purple);
+    font-size: 24px;
+    line-height: 1;
+}
+
+.page-title {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.login-icon {
+    font-size: 38px;
+    margin-bottom: 12px;
+}
+
+.page-title h1 {
+    margin: 0;
+    font-size: 28px;
+}
+
+.page-title span {
+    display: block;
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.alert {
+    padding: 12px 14px;
+    border-radius: 10px;
+    margin-bottom: 18px;
+    font-size: 14px;
+}
+
+.alert.error {
+    background: #fdecec;
+    color: #9c2d2d;
+    border: 1px solid #f2b9b9;
+}
+
+.alert.success {
+    background: #edf9ee;
+    color: #2f6c35;
+    border: 1px solid #cce7d0;
+}
+
+.form-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 0 18px;
+}
+
+.check {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.check input {
+    width: auto;
+}
+
+.small-link {
+    color: var(--purple);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.switch {
+    text-align: center;
+    margin-top: 22px;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.switch a {
+    color: var(--purple);
+    font-weight: 700;
+}
+
+@media (max-width: 650px) {
+    .login-wrap {
+        grid-template-columns: 1fr;
+    }
+
+    .brand-side {
+        padding: 28px;
+    }
+
+    .brand-logo {
+        font-size: 58px;
+    }
+
+    .auth {
+        padding: 28px;
+    }
+
+    .grid-2 {
+        grid-template-columns: 1fr;
+    }
+}

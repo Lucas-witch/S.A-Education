@@ -6,11 +6,24 @@ CREATE TABLE IF NOT EXISTS usuarios (
   email VARCHAR(255) NOT NULL UNIQUE,
   username VARCHAR(50) NOT NULL UNIQUE,
   senha VARCHAR(255) NOT NULL,
-  perfil ENUM('estudante','professor') NOT NULL DEFAULT 'estudante',
+  perfil ENUM('estudante','professor','instituicao') NOT NULL DEFAULT 'estudante',
   perfil_imagem VARCHAR(255) DEFAULT NULL,
   oauth_provider VARCHAR(50) DEFAULT NULL,
   oauth_id VARCHAR(255) DEFAULT NULL,
   criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS instituicoes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  usuario_id INT NOT NULL UNIQUE,
+  nome VARCHAR(180) NOT NULL,
+  tipo ENUM('fundamental','medio','faculdade','universidade','outro') NOT NULL,
+  natureza ENUM('publica','particular') NOT NULL,
+  responsavel VARCHAR(150) NOT NULL,
+  telefone VARCHAR(30) DEFAULT NULL,
+  cidade VARCHAR(120) NOT NULL,
+  criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS salas (

@@ -3,7 +3,12 @@ if (session_status() === PHP_SESSION_NONE) session_start();
 $current = basename($_SERVER['PHP_SELF']);
 ?>
 <aside class="sidebar">
-  <a class="logo" href="index.php"><img src="assets/images/logo_mark.svg" alt="S.A Education" style="height:38px;vertical-align:middle;margin-right:8px"> S.A<small>education</small></a>
+  <a class="logo" href="index.php" style="display:flex;align-items:center;gap:10px;">
+    <img src="assets/images/logo_mark.svg" alt="S.A Education" style="height:38px;width:38px;object-fit:contain;">
+    <span style="display:flex;flex-direction:column;line-height:1.05;font-size:18px;font-weight:800;">
+      S.A<small style="font-size:10px;letter-spacing:3px;text-transform:lowercase;opacity:.9;">education</small>
+    </span>
+  </a>
   <nav class="nav">
     <a class="<?= $current==='index.php'?'active':'' ?>" href="index.php"><span class="icon">⌂</span>Início</a>
     <a class="<?= in_array($current,['salas.php','sala.php','criar-sala.php','entrar-sala.php'])?'active':'' ?>" href="salas.php"><span class="icon">▦</span>Salas</a>
