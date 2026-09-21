@@ -1,5 +1,5 @@
 <?php
-require_once 'includes/helpers.php';
+require_once '../../includes/helpers.php';
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -7,21 +7,21 @@ require_once 'includes/helpers.php';
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width,initial-scale=1.0">
 	<title>S.A Education — Cadastro</title>
-	<link rel="stylesheet" href="assets/css/estilo.css">
-	<link rel="stylesheet" href="assets/css/login-cadastro.css">
+	<link rel="stylesheet" href="../../assets/css/estilo.css">
+	<link rel="stylesheet" href="../../assets/css/login-cadastro.css">
 </head>
 <body>
 	<main class="form-page">
 	<section class="form-card">
-		<a class="back" href="index.php">←</a>
+		<a class="back" href="../../index.php">←</a>
 
 		<div class="page-title">
-			<div class="login-icon"><img src="assets/images/logo-app.png" alt="Logotype"></div>
+			<div class="login-icon"><img src="../../assets/images/logo-app.png" alt="Logotype"></div>
 			<h1>Criar conta</h1>
 			<span>Preencha seus dados para começar.</span>
 		</div>
 
-		<form action="processa_cadastro.php" method="POST" autocomplete="on">
+		<form action="../../processa_cadastro.php" method="POST" autocomplete="on">
 			<input type="hidden" name="csrf" value="<?= esc(csrf_token()) ?>">
 
 			<label>Nome completo:

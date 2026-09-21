@@ -2,8 +2,8 @@
 declare(strict_types=1);
 
 session_start();
-require_once 'includes/helpers.php';
-require_once 'conexao.php';
+require_once '../../includes/helpers.php';
+require_once '../../conexao.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: login.php');
@@ -46,7 +46,7 @@ try {
     $_SESSION['usuario_username'] = $usuario['username'];
     $_SESSION['usuario_perfil'] = $usuario['perfil'];
 
-    header('Location: dashboard.php');
+    header('Location: ../../dashboard.php');
     exit;
 
 } catch (PDOException $e) {

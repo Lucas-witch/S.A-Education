@@ -3,7 +3,7 @@ declare(strict_types=1);
 session_start();
 
 if (!isset($_SESSION['usuario_id'])) {
-    header('Location: login.php');
+    header('Location: login/cadastro/login.php');
     exit;
 }
 ?>
@@ -22,7 +22,7 @@ if (!isset($_SESSION['usuario_id'])) {
             <div class="logo-mark"><img src="assets/images/logo_mark.svg" alt="S.A" style="width:36px;height:36px"></div>
             <div><strong>S.A</strong><span>Education</span></div>
         </div>
-        <a href="logout.php" class="btn btn-outline compact">Sair</a>
+        <a href="login/cadastro/logout.php" class="btn btn-outline compact">Sair</a>
     </div>
 
     <section class="welcome-panel">

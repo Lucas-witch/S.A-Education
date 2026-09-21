@@ -21,7 +21,7 @@ if (DEV_MODE && !isset($_SESSION['usuario_id'])) {
 // Função utilitária para exigir autenticação em páginas privadas
 function require_auth(): void {
     if (!isset($_SESSION['usuario_id'])) {
-        header('Location: login.php');
+        header('Location: login/cadastro/login.php');
         exit;
     }
 }

@@ -2,8 +2,8 @@
 declare(strict_types=1);
 
 session_start();
-require_once 'includes/helpers.php';
-require_once 'conexao.php';
+require_once '../../includes/helpers.php';
+require_once '../../conexao.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: cadastro-instituicao.php');
