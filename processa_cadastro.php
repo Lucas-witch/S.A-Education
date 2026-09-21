@@ -2,15 +2,14 @@
 declare(strict_types=1);
 
 session_start();
-require_once '../../includes/helpers.php';
-require_once '../../conexao.php';
+require_once __DIR__ . '/includes/helpers.php';
+require_once __DIR__ . '/conexao.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: cadastro.php');
     exit;
 }
 
-// Verifica CSRF token
 verify_csrf($_POST['csrf'] ?? '');
 
 $nome = trim($_POST['nome_completo'] ?? '');
@@ -89,7 +88,6 @@ try {
     $_SESSION['sucesso'] = 'Conta criada com sucesso! Agora faça login.';
     header('Location: login.php');
     exit;
-
 } catch (PDOException $e) {
     $_SESSION['erro_cadastro'] = 'Não foi possível criar a conta agora. Tente novamente.';
     header('Location: cadastro.php');

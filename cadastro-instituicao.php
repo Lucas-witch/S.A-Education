@@ -1,5 +1,5 @@
 <?php
-require_once '../../includes/helpers.php';
+require_once __DIR__ . '/includes/helpers.php';
 
 $dados = $_SESSION['dados_instituicao'] ?? [];
 $erro = $_SESSION['erro_instituicao'] ?? '';
@@ -11,8 +11,8 @@ unset($_SESSION['dados_instituicao'], $_SESSION['erro_instituicao']);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>S.A Education | Cadastro institucional</title>
-    <link rel="stylesheet" href="../../assets/css/estilo.css">
-    <link rel="stylesheet" href="../../assets/css/login-cadastro.css">
+    <link rel="stylesheet" href="assets/css/estilo.css">
+    <link rel="stylesheet" href="assets/css/login-cadastro.css">
 </head>
 <body>
 <main class="form-page">
@@ -20,7 +20,7 @@ unset($_SESSION['dados_instituicao'], $_SESSION['erro_instituicao']);
         <a class="back" href="cadastro.php">←</a>
 
         <div class="page-title">
-            <div class="login-icon"><img src="../../assets/images/logo-app.png" alt="Logotype"></div>
+            <div class="login-icon"><img src="assets/images/logo-app.png" alt="Logotype"></div>
             <h1>Cadastrar instituição</h1>
             <span>Crie o acesso da sua escola ou instituição de ensino.</span>
         </div>
@@ -29,7 +29,7 @@ unset($_SESSION['dados_instituicao'], $_SESSION['erro_instituicao']);
             <div class="alert error"><?= esc($erro) ?></div>
         <?php endif; ?>
 
-        <form action="../../processa_cadastro_instituicao.php" method="POST" autocomplete="on">
+        <form action="processa_cadastro_instituicao.php" method="POST" autocomplete="on">
             <input type="hidden" name="csrf" value="<?= esc(csrf_token()) ?>">
 
             <label>Nome da instituição:

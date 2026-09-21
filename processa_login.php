@@ -2,15 +2,14 @@
 declare(strict_types=1);
 
 session_start();
-require_once '../../includes/helpers.php';
-require_once '../../conexao.php';
+require_once __DIR__ . '/includes/helpers.php';
+require_once __DIR__ . '/conexao.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: login.php');
     exit;
 }
 
-// Verifica CSRF token
 verify_csrf($_POST['csrf'] ?? '');
 
 $login = trim($_POST['login'] ?? '');
@@ -46,9 +45,8 @@ try {
     $_SESSION['usuario_username'] = $usuario['username'];
     $_SESSION['usuario_perfil'] = $usuario['perfil'];
 
-    header('Location: ../../dashboard.php');
+    header('Location: dashboard.php');
     exit;
-
 } catch (PDOException $e) {
     $_SESSION['erro_login'] = 'Não foi possível realizar o login agora.';
     header('Location: login.php');
