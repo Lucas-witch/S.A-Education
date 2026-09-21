@@ -8,6 +8,7 @@ require 'includes/auth.php';
         <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>Criar Sala</title>
     <link rel="stylesheet" href="assets/css/estilo.css">
+    <link rel="stylesheet" href="assets/css/sala-config.css">
 </head>
 <body>
     <div class="app">
