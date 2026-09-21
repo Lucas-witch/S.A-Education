@@ -18,7 +18,7 @@ $nomeUser = $_SESSION['usuario_nome']
         <p>Vamos aprender algo novo hoje?</p>
     </div>
     <div class="top-actions">
-        <button class="icon-btn" type="button" aria-label="Logo da S.A Education"><img src="assets/images/logo_SAeducation_pocket.png" alt="Logo S.A Education" style="width:20px;height:20px;object-fit:contain"></button>
+        <button class="icon-btn"><img src="assets/images/logo_SAeducation_pocket.png" alt="logo" style="width:20px;height:20px"></button>
     </div>
 </header>
 <section class="hero">

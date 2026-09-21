@@ -32,7 +32,7 @@ if (!isset($_SESSION['usuario_id'])) {
             <p>Sua conta está ativa. Agora você pode explorar a plataforma.</p>
             <div class="profile-pill">
                 <img src="assets/images/icons/<?= $_SESSION['usuario_perfil'] === 'professor' ? 'professor' : 'student' ?>.svg" alt="perfil" style="width:18px;height:18px;vertical-align:middle;margin-right:8px">
-                <?= $_SESSION['usuario_perfil'] === 'professor' ? 'Professor' : ($_SESSION['usuario_perfil'] === 'instituicao' ? 'Instituição de ensino' : 'Estudante') ?>
+                <?= $_SESSION['usuario_perfil'] === 'professor' ? 'Professor' : 'Estudante' ?>
                 · @<?= htmlspecialchars($_SESSION['usuario_username']) ?>
             </div>
         </div>

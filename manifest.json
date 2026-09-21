@@ -1,7 +1,7 @@
 {
   "name": "Meu Primeiro Progressive Web App",
   "short_name": "Meu PWA",
-  "start_url": "/index.php",
+  "start_url": "/index.html",
   "display": "standalone",
   "background_color": "#FFFFFF",
   "theme_color": "#32CD32",

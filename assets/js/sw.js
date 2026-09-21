@@ -1,7 +1,7 @@
 const CACHE_NAME = 'meu-pwa-cache-v1';
 const ASSETS = [
     '/',
-    '/index.php',
+    '/index.html',
     '/manifest.json',
     '/assets/images/logo_SAeducation_pocket.png',
     '/assets/images/logo_SAeducation.png',

@@ -2,7 +2,6 @@
 
 Estrutura baseada no protótipo enviado, com áreas separadas para:
 - Login e cadastro
-- Cadastro institucional para escolas, faculdades e universidades públicas ou particulares
 - Início
 - Salas de estudo
 - Detalhes da sala
