@@ -18,14 +18,11 @@ $username = trim($_POST['username'] ?? '');
 $senha = $_POST['senha'] ?? '';
 $confirmar = $_POST['confirmar_senha'] ?? '';
 $perfil = $_POST['perfil'] ?? 'estudante';
-$interesses = trim($_POST['interesses'] ?? '');
-
 $_SESSION['dados_cadastro'] = [
     'nome_completo' => $nome,
     'email' => $email,
     'username' => $username,
-    'perfil' => $perfil,
-    'interesses' => $interesses
+    'perfil' => $perfil
 ];
 
 $voltar = function(string $mensagem): never {
@@ -71,8 +68,8 @@ try {
     $senhaHash = password_hash($senha, PASSWORD_DEFAULT);
 
     $stmt = $pdo->prepare(
-        'INSERT INTO usuarios (nome_completo, email, username, senha, perfil, interesses)
-         VALUES (:nome, :email, :username, :senha, :perfil, :interesses)'
+        'INSERT INTO usuarios (nome_completo, email, username, senha, perfil)
+         VALUES (:nome, :email, :username, :senha, :perfil)'
     );
 
     $stmt->execute([
@@ -80,8 +77,7 @@ try {
         'email' => $email,
         'username' => $username,
         'senha' => $senhaHash,
-        'perfil' => $perfil,
-        'interesses' => $interesses !== '' ? $interesses : null
+        'perfil' => $perfil
     ]);
 
     unset($_SESSION['dados_cadastro']);

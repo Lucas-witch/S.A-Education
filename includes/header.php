@@ -16,9 +16,10 @@ $current = basename($_SERVER['PHP_SELF']);
 
 <nav class="mobile-nav">
   <a class="<?= $current==='index.php'?'active':'' ?>" href="index.php">⌂<br>Início</a>
+  <a class="<?= $current==='feed.php'?'active':'' ?>" href="feed.php">✦<br>Feed</a>
   <a class="<?= in_array($current,['salas.php','sala.php'])?'active':'' ?>" href="salas.php">▦<br>Salas</a>
-  <a class="<?= $current==='quiz.php'?'active':'' ?>" href="quiz.php">☑<br>Quiz</a>
-  <a class="<?= $current==='ranking.php'?'active':'' ?>" href="ranking.php">♜<br>Ranking</a>
+  <a class="<?= $current==='biblioteca.php'?'active':'' ?>" href="biblioteca.php">📚<br>Biblioteca</a>
+  <a class="<?= $current==='quiz.php'?'active':'' ?>" href="quiz.php">☑<br>Exercícios</a>
   <a class="<?= $current==='perfil.php'?'active':'' ?>" href="perfil.php">◉<br>Perfil</a>
 </nav>
 

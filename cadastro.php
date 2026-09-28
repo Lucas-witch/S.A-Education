@@ -1,5 +1,9 @@
 <?php
 require_once __DIR__ . '/includes/helpers.php';
+
+$erro = $_SESSION['erro_cadastro'] ?? '';
+$sucesso = $_SESSION['sucesso'] ?? '';
+unset($_SESSION['erro_cadastro'], $_SESSION['sucesso']);
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -20,6 +24,14 @@ require_once __DIR__ . '/includes/helpers.php';
 			<h1>Criar conta</h1>
 			<span>Preencha seus dados para começar.</span>
 		</div>
+
+		<?php if ($erro): ?>
+			<div class="alert error"><?= esc($erro) ?></div>
+		<?php endif; ?>
+
+		<?php if ($sucesso): ?>
+			<div class="alert success"><?= esc($sucesso) ?></div>
+		<?php endif; ?>
 
 		<form action="processa_cadastro.php" method="POST" autocomplete="on">
 			<input type="hidden" name="csrf" value="<?= esc(csrf_token()) ?>">
