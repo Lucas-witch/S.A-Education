@@ -1,7 +1,28 @@
-<?php 
-require 'includes/auth.php';
-require 'includes/data.php'; 
-require_auth(); 
+<?php
+require __DIR__ . '/includes/auth.php';
+require __DIR__ . '/includes/data.php';
+require_auth();
+
+$perfilAtual = current_user_perfil();
+$profile = [
+    'nome' => $_SESSION['usuario_nome'] ?? ($_SESSION['usuario_username'] ?? 'Usuário'),
+    'email' => $_SESSION['usuario_email'] ?? '—',
+    'perfil' => perfil_label($perfilAtual ?: 'estudante'),
+];
+
+$statMap = [
+    'estudante' => ['Pontos' => '2.450', 'Salas' => '12', 'Quizzes' => '28'],
+    'professor' => ['Turmas' => '8', 'Aulas' => '32', 'Alunos' => '240'],
+    'instituicao' => ['Unidades' => '4', 'Salas' => '18', 'Atividades' => '56'],
+];
+
+$menuMap = [
+    'estudante' => ['Minhas salas', 'Histórico de quizzes', 'Conquistas', 'Editar perfil', 'Sair'],
+    'professor' => ['Minhas turmas', 'Aulas publicadas', 'Exercícios', 'Editar perfil', 'Sair'],
+    'instituicao' => ['Estrutura da instituição', 'Salas cadastradas', 'Relatórios', 'Editar perfil', 'Sair'],
+];
+
+$avatar = 'assets/images/avatars/default.png';
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -13,73 +34,48 @@ require_auth();
 		<link rel="stylesheet" href="assets/css/perfil.css">
 	</head>
 	<body>
-		<div class="app"><?php require 'includes/header.php'; ?>
+		<div class="app"><?php require __DIR__ . '/includes/header.php'; ?>
 			<main class="main">
 				<header class="topbar">
 					<div>
 						<h1>Meu Perfil</h1>
-						<p>Seu desempenho acadêmico.</p>
+						<p>Seu desempenho e contexto de acesso.</p>
 					</div>
-					<button class="icon-btn">⚙</button></header>
-		</div>
-<?php
-// Se foi passado ?id= tente buscar esse usuário; caso contrário exiba o usuário da sessão
-$profile = null;
-if (isset($_GET['id']) && isset($pdo) && $pdo instanceof PDO) {
-	$stmt = $pdo->prepare('SELECT id,nome_completo AS nome,email,perfil FROM usuarios WHERE id = ? LIMIT 1');
-	$stmt->execute([intval($_GET['id'])]);
-	$profile = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
-}
-if (!$profile) {
-	$profile = [
-		'nome' => $_SESSION['usuario_nome'] ?? ($_SESSION['usuario_username'] ?? 'Usuário'),
-		'email' => $_SESSION['usuario_email'] ?? '—',
-		'perfil' => $_SESSION['usuario_perfil'] ?? 'Estudante'
-	];
-}
-$avatar = 'assets/images/avatars/default.png';
-?>
+					<button class="icon-btn">⚙</button>
+				</header>
+
 			<div class="card" style="padding:25px">
 				<div class="profile">
 					<div class="avatar">
-						<img src="<?= $avatar ?>" alt="avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover">
+						<img src="<?= htmlspecialchars($avatar) ?>" alt="avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover">
 					</div>
 					<div>
-						<h2 style="font-size:17px;margin:0 0 5px"><?= htmlspecialchars($profile['nome']) ?></h2>
-						<p style="margin:0;font-size:12px;color:var(--muted)"><?= htmlspecialchars($profile['perfil']) ?></p>
-						<small style="color:var(--muted)"><?= htmlspecialchars($profile['email']) ?></small>
+						<h2 style="font-size:17px;margin:0 0 5px"><?= htmlspecialchars((string) $profile['nome']) ?></h2>
+						<p style="margin:0;font-size:12px;color:var(--muted)"><?= htmlspecialchars((string) $profile['perfil']) ?></p>
+						<small style="color:var(--muted)"><?= htmlspecialchars((string) $profile['email']) ?></small>
+					</div>
+				</div>
+				<div class="stats" style="margin-top:22px">
+					<?php foreach (($statMap[$perfilAtual] ?? $statMap['estudante']) as $label => $valor): ?>
+					<div class="stat">
+						<strong><?= htmlspecialchars((string) $valor) ?></strong>
+						<span><?= htmlspecialchars((string) $label) ?></span>
+					</div>
+					<?php endforeach; ?>
 				</div>
 			</div>
-			<div class="stats" style="margin-top:22px">
-				<div class="stat">
-					<strong>2.450</strong>
-					<span>Pontos</span>
-				</div>
-				<div class="stat">
-					<strong>12</strong>
-					<span>Salas</span>
-				</div>
-				<div class="stat">
-					<strong>28</strong>
-					<span>Quizzes</span>
-				</div>
+
+			<div class="card" style="margin-top:18px">
+				<?php foreach (($menuMap[$perfilAtual] ?? $menuMap['estudante']) as $item): ?>
+				<a class="rank-row" href="#">
+					<span class="rank-avatar">◉</span>
+					<strong style="font-size:13px"><?= htmlspecialchars((string) $item) ?></strong>
+					<span class="arrow">›</span>
+				</a>
+				<?php endforeach; ?>
 			</div>
+		</main>
 		</div>
-		<div class="card" style="margin-top:18px">
-<?php 
-foreach(['Minhas salas','Histórico de quizzes','Conquistas','Editar perfil','Sair'] as $item): 
-?>
-<a class="rank-row" href="#">
-	<span class="rank-avatar">◉</span>
-	<strong style="font-size:13px">
-		<?= $item ?>
-	</strong>
-	<span class="arrow">›</span>
-</a><?php endforeach; 
-?>
-</div>
-</main>
-</div>
-<?php 
-require 'includes/footer.php'; 
-?>
+		<?php require __DIR__ . '/includes/footer.php'; ?>
+	</body>
+</html>

@@ -4,6 +4,8 @@ declare(strict_types=1);
 /*
  * Configuração do banco de dados.
  * Usa os valores padrão do XAMPP e ainda aceita variáveis de ambiente.
+ * O projeto passa a considerar o banco como fonte única de verdade:
+ * não há usuários ou dados padrão inseridos fora do banco.
  */
 $host = getenv('DB_HOST') ?: $_ENV['DB_HOST'] ?? '127.0.0.1';
 $db   = getenv('DB_NAME') ?: $_ENV['DB_NAME'] ?? 'sa_education';
@@ -65,59 +67,4 @@ if (file_exists($schemaPath)) {
     }
 }
 
-$defaultUsers = [
-    [
-        'nome_completo' => 'Administrador SA',
-        'email' => 'admin@saeducation.com',
-        'username' => 'admin',
-        'senha' => 'Senha@123',
-        'perfil' => 'estudante',
-        'plano' => 'premium',
-        'premium_ativo' => 1,
-    ],
-    [
-        'nome_completo' => 'Lucas',
-        'email' => 'lucas@example.com',
-        'username' => 'lucas',
-        'senha' => 'Senha@123',
-        'perfil' => 'professor',
-        'plano' => 'premium',
-        'premium_ativo' => 1,
-    ],
-    [
-        'nome_completo' => 'Ana Clara',
-        'email' => 'ana.clara@example.com',
-        'username' => 'anaclara',
-        'senha' => 'Senha@123',
-        'perfil' => 'estudante',
-        'plano' => 'free',
-        'premium_ativo' => 0,
-    ],
-];
-
-foreach ($defaultUsers as $user) {
-    $existing = $pdo->prepare('SELECT id FROM usuarios WHERE email = :email OR username = :username LIMIT 1');
-    $existing->execute([
-        'email' => $user['email'],
-        'username' => $user['username'],
-    ]);
-
-    if ($existing->fetch()) {
-        continue;
-    }
-
-    $insertUser = $pdo->prepare(
-        'INSERT INTO usuarios (nome_completo, email, username, senha, perfil, plano_id, premium_ativo)
-         VALUES (:nome, :email, :username, :senha, :perfil, (SELECT id FROM planos WHERE nome = :plano LIMIT 1), :premium_ativo)'
-    );
-
-    $insertUser->execute([
-        'nome' => $user['nome_completo'],
-        'email' => $user['email'],
-        'username' => $user['username'],
-        'senha' => password_hash($user['senha'], PASSWORD_DEFAULT),
-        'perfil' => $user['perfil'],
-        'plano' => $user['plano'],
-        'premium_ativo' => $user['premium_ativo'],
-    ]);
-}
+unset($schemaPath, $schema, $statements);

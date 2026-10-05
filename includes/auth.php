@@ -3,22 +3,37 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Feature flag: para desenvolvimento local, habilite DEV_MODE = true
 if (!defined('DEV_MODE')) {
     define('DEV_MODE', false);
 }
 
-// Se estiver em modo de desenvolvimento e não houver usuário autenticado,
-// preencha uma sessão de demonstração. Em produção DEV_MODE deve permanecer false.
-if (DEV_MODE && !isset($_SESSION['usuario_id'])) {
-    $_SESSION['usuario_id'] = 1;
-    $_SESSION['usuario_nome'] = 'Ana Clara';
-    $_SESSION['usuario_email'] = 'ana.clara@email.com';
-    $_SESSION['usuario_username'] = 'anaclara';
-    $_SESSION['usuario_perfil'] = 'estudante';
+function current_user_perfil(): string {
+    $perfil = $_SESSION['usuario_perfil'] ?? '';
+    return is_string($perfil) ? strtolower(trim($perfil)) : '';
 }
 
-// Função utilitária para exigir autenticação em páginas privadas
+function is_estudante(): bool {
+    return current_user_perfil() === 'estudante';
+}
+
+function is_professor(): bool {
+    return current_user_perfil() === 'professor';
+}
+
+function is_instituicao(): bool {
+    return current_user_perfil() === 'instituicao';
+}
+
+function perfil_label(string $perfil): string {
+    $mapa = [
+        'estudante' => 'Estudante',
+        'professor' => 'Professor',
+        'instituicao' => 'Instituição',
+    ];
+
+    return $mapa[$perfil] ?? 'Usuário';
+}
+
 function require_auth(): void {
     if (!isset($_SESSION['usuario_id'])) {
         header('Location: login.php');
@@ -26,4 +41,13 @@ function require_auth(): void {
     }
 }
 
-// Não produzir saída aqui — evita problemas com headers
+function require_perfil(array $perfis): void {
+    require_auth();
+
+    $perfilAtual = current_user_perfil();
+    if ($perfilAtual === '' || !in_array($perfilAtual, $perfis, true)) {
+        http_response_code(403);
+        header('Location: dashboard.php');
+        exit;
+    }
+}

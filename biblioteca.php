@@ -1,14 +1,27 @@
 <?php
-require 'includes/auth.php';
-require 'includes/data.php';
+require __DIR__ . '/includes/auth.php';
+require __DIR__ . '/includes/data.php';
 require_auth();
 
+$perfilAtual = current_user_perfil();
 $livros = [
     ['titulo' => 'Matemática para Concursos', 'autor' => 'Lucas N.', 'tipo' => 'Livro', 'status' => 'Disponível'],
     ['titulo' => 'Redação em Foco', 'autor' => 'Marina L.', 'tipo' => 'PDF', 'status' => 'Disponível'],
     ['titulo' => 'História do Brasil em Fases', 'autor' => 'Pedro A.', 'tipo' => 'Apostila', 'status' => 'Leitura online'],
     ['titulo' => 'Pensamento Crítico', 'autor' => 'Ana C.', 'tipo' => 'Artigo', 'status' => 'Disponível'],
 ];
+
+$subtitulo = [
+    'estudante' => 'Livros, apostilas e materiais para reforçar seus estudos.',
+    'professor' => 'Materiais e recursos para apoiar sua turma e suas aulas.',
+    'instituicao' => 'Biblioteca institucional com materiais de apoio às turmas.',
+][$perfilAtual] ?? 'Livros, apostilas e materiais de estudo';
+
+$botaoTexto = [
+    'estudante' => 'Explorar materiais',
+    'professor' => 'Adicionar material',
+    'instituicao' => 'Gerenciar biblioteca',
+][$perfilAtual] ?? 'Explorar materiais';
 ?>
 <!doctype html>
 <html lang="pt-BR">
@@ -30,28 +43,29 @@ $livros = [
   </style>
 </head>
 <body>
-  <?php require 'includes/header.php'; ?>
+  <?php require __DIR__ . '/includes/header.php'; ?>
   <main class="main">
     <div class="library-wrap">
       <header class="topbar">
         <div>
           <h1>Biblioteca</h1>
-          <p>Livros, apostilas e materiais de estudo</p>
+          <p><?= htmlspecialchars($subtitulo) ?></p>
         </div>
+        <button class="btn btn-primary" type="button"><?= htmlspecialchars($botaoTexto) ?></button>
       </header>
 
       <div class="library-grid">
         <?php foreach ($livros as $livro): ?>
           <article class="book-card">
-            <div class="book-cover"><?= strtoupper(substr($livro['titulo'],0,1)) ?></div>
-            <h3><?= htmlspecialchars($livro['titulo']) ?></h3>
-            <p><?= htmlspecialchars($livro['autor']) ?> · <?= htmlspecialchars($livro['tipo']) ?></p>
-            <span class="book-badge"><?= htmlspecialchars($livro['status']) ?></span>
+            <div class="book-cover"><?= strtoupper(substr((string) $livro['titulo'], 0, 1)) ?></div>
+            <h3><?= htmlspecialchars((string) $livro['titulo']) ?></h3>
+            <p><?= htmlspecialchars((string) $livro['autor']) ?> · <?= htmlspecialchars((string) $livro['tipo']) ?></p>
+            <span class="book-badge"><?= htmlspecialchars((string) $livro['status']) ?></span>
           </article>
         <?php endforeach; ?>
       </div>
     </div>
   </main>
-  <?php require 'includes/footer.php'; ?>
+  <?php require __DIR__ . '/includes/footer.php'; ?>
 </body>
 </html>

@@ -1,11 +1,23 @@
 <?php
 declare(strict_types=1);
-session_start();
+require __DIR__ . '/includes/auth.php';
+require_auth();
 
-if (!isset($_SESSION['usuario_id'])) {
-    header('Location: login.php');
-    exit;
-}
+$perfilAtual = current_user_perfil();
+$nomeUsuario = $_SESSION['usuario_nome'] ?? $_SESSION['usuario_username'] ?? 'Usuário';
+$perfilNome = perfil_label($perfilAtual ?: 'estudante');
+
+$welcomeTitle = [
+    'estudante' => 'Bem-vindo à sua jornada de estudo!',
+    'professor' => 'Painel do professor em ação!',
+    'instituicao' => 'Painel institucional da sua escola!',
+][$perfilAtual] ?? 'Bem-vindo!';
+
+$welcomeText = [
+    'estudante' => 'Sua conta está ativa e pronta para acompanhar salas, materiais e desafios.',
+    'professor' => 'Você pode acompanhar salas, materiais e o progresso da sua turma em um só lugar.',
+    'instituicao' => 'Acompanhe o funcionamento das salas, materiais e atividades da instituição.',
+][$perfilAtual] ?? 'Sua conta está ativa.';
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -28,15 +40,22 @@ if (!isset($_SESSION['usuario_id'])) {
     <section class="welcome-panel">
         <div>
             <span class="eyebrow">S.A EDUCATION</span>
-            <h1>Olá, <?= htmlspecialchars($_SESSION['usuario_nome']) ?>!</h1>
-            <p>Sua conta está ativa. Agora você pode explorar a plataforma.</p>
+            <h1>Olá, <?= htmlspecialchars((string) $nomeUsuario) ?>!</h1>
+            <p><?= htmlspecialchars($welcomeText) ?></p>
             <div class="profile-pill">
-                <img src="assets/images/icons/<?= $_SESSION['usuario_perfil'] === 'professor' ? 'professor' : 'student' ?>.svg" alt="perfil" style="width:18px;height:18px;vertical-align:middle;margin-right:8px">
-                <?= $_SESSION['usuario_perfil'] === 'professor' ? 'Professor' : 'Estudante' ?>
-                · @<?= htmlspecialchars($_SESSION['usuario_username']) ?>
+                <img src="assets/images/icons/<?= $perfilAtual === 'professor' ? 'professor' : ($perfilAtual === 'instituicao' ? 'institution' : 'student') ?>.svg" alt="perfil" style="width:18px;height:18px;vertical-align:middle;margin-right:8px">
+                <?= htmlspecialchars($perfilNome) ?>
+                · @<?= htmlspecialchars((string) ($_SESSION['usuario_username'] ?? 'usuario')) ?>
             </div>
         </div>
         <div class="dashboard-art">📚✨</div>
+    </section>
+
+    <section class="card" style="margin-top:22px;padding:20px;">
+        <h2 style="margin:0 0 12px;">Resumo do perfil</h2>
+        <p style="margin:0; color:var(--muted);">
+            <?= htmlspecialchars($welcomeTitle) ?>
+        </p>
     </section>
 </main>
 </body>
