@@ -37,7 +37,7 @@ TL;DR: Reescrever o projeto para ser um PWA mobile-first, com autenticação (e-
 - Implementar `logout.php` (limpa sessão e cookies, redireciona para `index.php`).
 - Ajustar `cadastro.html` → transformar em `cadastro.php` (form POST) com names esperados: `nome_completo`, `email`, `username`, `senha`, `confirmar_senha`, `perfil` e incluir campo hidden `csrf`.
 - Atualizar `processa_cadastro.php`: validar `csrf`, checar duplicidades (email/username), inserir usuário com `password_hash`, redirecionar para `login.php` com mensagem de sucesso.
-- Atualizar `processa_login.php`: validar `csrf`, preparar statement, `password_verify`, `session_regenerate_id(true)`, setar `$_SESSION` padrão e redirecionar para `dashboard.php`.
+- Atualizar `processa_login.php`: validar `csrf`, preparar statement, `password_verify`, `session_regenerate_id(true)`, setar `$_SESSION` padrão e redirecionar para `perfil-dashboard.php`.
 
 **Fase 4 — OAuth (Google/Microsoft) (1-2 dias)**
 - Criar rota `oauth/redirect.php` e `oauth/callback.php` para cada provedor (Google, Microsoft) ou usar uma lib leve.
@@ -51,7 +51,7 @@ TL;DR: Reescrever o projeto para ser um PWA mobile-first, com autenticação (e-
 **Fase 6 — Frontend: templates & CSS (2 dias)**
 - Unificar CSS: manter `assets/css/style.css` como principal. Migrar estilos de `estilo.css` para este arquivo.
 - Atualizar cabeçalho/footer: `includes/header.php` e `includes/footer.php` com paths corretos e bottom-nav mobile.
-- Substituir emojis por imagens: trocar ocorrências em `index.php`, `dashboard.php`, `sala.php`, `perfil.php`, `ranking.php`, `criar-sala.php`, `entrar-sala.php` para `<img src="assets/images/..." alt="...">` com classes responsivas.
+- Substituir emojis por imagens: trocar ocorrências em `index.php`, `perfil-dashboard.php`, `sala.php`, `perfil.php`, `ranking.php`, `criar-sala.php`, `entrar-sala.php` para `<img src="assets/images/..." alt="...">` com classes responsivas.
 - Criar componentes visuais em HTML (cards, room-card, profile-pill) conforme o design.
 
 **Fase 7 — Interatividade JS (0.5 dia)**

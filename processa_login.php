@@ -19,7 +19,6 @@ $senha = (string) ($_POST['senha'] ?? '');
 auth_debug_log('login_attempt', [
     'login' => $login,
     'csrf_present' => isset($_POST['csrf']) && $_POST['csrf'] !== '',
-    'csrf_session' => $_SESSION['csrf_token'] ?? null,
     'post_keys' => array_keys($_POST),
 ]);
 
@@ -30,20 +29,25 @@ if ($login === '' || $senha === '') {
 }
 
 try {
+    /*
+     * A autenticação consulta somente a tabela usuarios e usa dois
+     * placeholders diferentes. Isso evita HY093 com prepared statements
+     * nativos e também evita que colunas opcionais de planos/progresso
+     * impeçam o login em bancos criados por versões anteriores do projeto.
+     */
     $stmt = $pdo->prepare(
-        'SELECT u.id, u.nome_completo, u.email, u.username, u.senha, u.perfil, u.plano_id, u.premium_ativo,
-                u.perfil_imagem, u.pontos, u.moedas, u.seguidores, u.grupos, u.horas_aulas, u.livros_lidos,
-                u.quizzes_pontos, u.atividades_pontos, u.artigos_pontuacao, u.escritos_pontuacao,
-                u.ensaios_pontuacao, u.redacoes_pontuacao, u.acertos_timeline, u.erros_timeline,
-                p.nome AS plano_nome, p.pode_postar_aulas_ilimitadas, p.pode_criar_salas,
-                p.pode_criar_comunidades_privadas, p.limite_video_aula_free
+        'SELECT u.*
          FROM usuarios u
-         LEFT JOIN planos p ON p.id = u.plano_id
-         WHERE (LOWER(u.email) = LOWER(:login) OR LOWER(u.username) = LOWER(:login))
-           AND u.perfil IN (\'estudante\', \'professor\')
+         WHERE LOWER(u.email) = LOWER(:login_email)
+            OR LOWER(u.username) = LOWER(:login_username)
          LIMIT 1'
     );
-    $stmt->execute(['login' => $login]);
+
+    $stmt->execute([
+        'login_email' => $login,
+        'login_username' => $login,
+    ]);
+
     $usuario = $stmt->fetch();
 
     auth_debug_log('login_query_result', [
@@ -59,7 +63,8 @@ try {
         exit;
     }
 
-    $senhaValida = password_verify($senha, $usuario['senha']);
+    $senhaValida = password_verify($senha, (string) $usuario['senha']);
+
     auth_debug_log('password_verify', [
         'senha_valida' => $senhaValida,
         'perfil' => $usuario['perfil'] ?? null,
@@ -74,6 +79,7 @@ try {
     try {
         set_authenticated_session($usuario);
     } catch (InvalidArgumentException $e) {
+        error_log('[S.A Education][login_session] ' . $e->getMessage());
         auth_debug_log('login_session_error', ['message' => $e->getMessage()]);
         $_SESSION['erro_login'] = 'E-mail/usuário ou senha inválidos.';
         header('Location: login.php');
@@ -81,16 +87,17 @@ try {
     }
 
     auth_debug_log('login_success', [
-        'usuario_id' => $_SESSION['usuario_id'],
-        'perfil' => $_SESSION['usuario_perfil'],
+        'usuario_id' => $_SESSION['usuario_id'] ?? null,
+        'perfil' => $_SESSION['usuario_perfil'] ?? null,
     ]);
 
-    header('Location: dashboard.php');
+    header('Location: perfil-dashboard.php');
     exit;
 } catch (PDOException $e) {
+    // Mantém os detalhes fora da tela, mas registra a causa real no log do PHP/Apache.
+    error_log('[S.A Education][login][PDO] ' . $e->getMessage());
     auth_debug_log('login_exception', ['message' => $e->getMessage()]);
     $_SESSION['erro_login'] = 'Não foi possível realizar o login agora.';
     header('Location: login.php');
     exit;
 }
-

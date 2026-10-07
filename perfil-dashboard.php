@@ -108,7 +108,7 @@ $errosPoints = build_line_points($erros, $chartWidth, $chartHeight, $chartPaddin
                         <p>Seu desempenho, progresso e atividades recentes em um só lugar.</p>
                     </div>
                     <div class="top-actions">
-                        <a href="dashboard.php" class="icon-btn" aria-label="Voltar ao painel">←</a>
+                        <a href="index.php" class="icon-btn" aria-label="Voltar ao início">←</a>
                     </div>
                 </header>
 

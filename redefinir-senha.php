@@ -5,7 +5,7 @@ session_start();
 require_once __DIR__ . '/includes/helpers.php';
 
 if (isset($_SESSION['usuario_id'])) {
-    header('Location: dashboard.php');
+    header('Location: perfil-dashboard.php');
     exit;
 }
 
