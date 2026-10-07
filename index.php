@@ -28,7 +28,7 @@ $heroButton = [
 $heroLink = [
     'estudante' => 'salas.php',
     'professor' => 'criar-sala.php',
-    'instituicao' => 'perfil.php',
+    'instituicao' => 'perfil-dashboard.php',
 ][$perfilAtual] ?? 'salas.php';
 ?>
 <!DOCTYPE html>

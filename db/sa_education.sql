@@ -182,13 +182,33 @@ CREATE TABLE `usuarios` (
   `senha` varchar(255) NOT NULL,
   `perfil` enum('estudante','professor','instituicao') NOT NULL DEFAULT 'estudante',
   `plano_id` int(11) NOT NULL DEFAULT 1,
-  `perfil_imagem` varchar(255) DEFAULT NULL,
+  `perfil_imagem` varchar(255) DEFAULT 'assets/images/icons/user-icon.png',
+  `pontos` int(11) NOT NULL DEFAULT 0,
+  `moedas` int(11) NOT NULL DEFAULT 0,
+  `seguidores` int(11) NOT NULL DEFAULT 0,
+  `grupos` int(11) NOT NULL DEFAULT 0,
+  `horas_aulas` int(11) NOT NULL DEFAULT 0,
+  `livros_lidos` int(11) NOT NULL DEFAULT 0,
+  `quizzes_pontos` int(11) NOT NULL DEFAULT 0,
+  `atividades_pontos` int(11) NOT NULL DEFAULT 0,
+  `artigos_pontuacao` int(11) DEFAULT NULL,
+  `escritos_pontuacao` int(11) DEFAULT NULL,
+  `ensaios_pontuacao` int(11) DEFAULT NULL,
+  `redacoes_pontuacao` int(11) DEFAULT NULL,
+  `acertos_timeline` json DEFAULT NULL,
+  `erros_timeline` json DEFAULT NULL,
   `oauth_provider` varchar(50) DEFAULT NULL,
   `oauth_id` varchar(255) DEFAULT NULL,
   `premium_ativo` tinyint(1) NOT NULL DEFAULT 0,
   `criado_em` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Inserção de dados de exemplo para perfil e progresso do usuário
+--
+
+INSERT INTO `usuarios` (`id`, `nome_completo`, `email`, `username`, `senha`, `perfil`, `plano_id`, `perfil_imagem`, `pontos`, `moedas`, `seguidores`, `grupos`, `horas_aulas`, `livros_lidos`, `quizzes_pontos`, `atividades_pontos`, `artigos_pontuacao`, `escritos_pontuacao`, `ensaios_pontuacao`, `redacoes_pontuacao`, `acertos_timeline`, `erros_timeline`, `oauth_provider`, `oauth_id`, `premium_ativo`, `criado_em`) VALUES
+(1, 'Maria Silva', 'maria@saeducation.com', 'maria', '$2y$10$J7a7Hj55Q5w0ZcZb0kK1ieDZa2kQk7I3lE2KqfWv5lNq8U0vN3G7m', 'estudante', 1, 'assets/images/icons/user-icon.png', 2450, 1480, 864, 12, 38, 7, 1450, 930, 820, 760, 910, 790, '[35, 42, 48, 58, 66, 74, 82]', '[52, 48, 42, 36, 29, 23, 18]', NULL, NULL, 0, '2026-09-28 19:16:52');
 
 --
 -- Índices para tabelas despejadas

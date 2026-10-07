@@ -32,6 +32,9 @@ if ($login === '' || $senha === '') {
 try {
     $stmt = $pdo->prepare(
         'SELECT u.id, u.nome_completo, u.email, u.username, u.senha, u.perfil, u.plano_id, u.premium_ativo,
+                u.perfil_imagem, u.pontos, u.moedas, u.seguidores, u.grupos, u.horas_aulas, u.livros_lidos,
+                u.quizzes_pontos, u.atividades_pontos, u.artigos_pontuacao, u.escritos_pontuacao,
+                u.ensaios_pontuacao, u.redacoes_pontuacao, u.acertos_timeline, u.erros_timeline,
                 p.nome AS plano_nome, p.pode_postar_aulas_ilimitadas, p.pode_criar_salas,
                 p.pode_criar_comunidades_privadas, p.limite_video_aula_free
          FROM usuarios u

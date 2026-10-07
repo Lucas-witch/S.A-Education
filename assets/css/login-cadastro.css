@@ -162,7 +162,7 @@
 }
 
 .form-card {
-    width: min(700px, 100%);
+    width: min(660px, 100%);
     margin: 0 auto;
     padding: 28px;
     background: var(--surface);

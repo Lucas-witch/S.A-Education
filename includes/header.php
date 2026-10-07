@@ -12,20 +12,20 @@ $menuDesktop = [
         ['label' => 'Salas', 'href' => 'salas.php', 'icon' => '▦'],
         ['label' => 'Quiz', 'href' => 'quiz.php', 'icon' => '☑'],
         ['label' => 'Ranking', 'href' => 'ranking.php', 'icon' => '♜'],
-        ['label' => 'Perfil', 'href' => 'perfil.php', 'icon' => '◉'],
+        ['label' => 'Perfil', 'href' => 'perfil-dashboard.php', 'icon' => '◉'],
     ],
     'professor' => [
         ['label' => 'Início', 'href' => 'index.php', 'icon' => '⌂'],
         ['label' => 'Salas', 'href' => 'salas.php', 'icon' => '▦'],
         ['label' => 'Criar sala', 'href' => 'criar-sala.php', 'icon' => '＋'],
         ['label' => 'Ranking', 'href' => 'ranking.php', 'icon' => '♜'],
-        ['label' => 'Perfil', 'href' => 'perfil.php', 'icon' => '◉'],
+        ['label' => 'Perfil', 'href' => 'perfil-dashboard.php', 'icon' => '◉'],
     ],
     'instituicao' => [
         ['label' => 'Início', 'href' => 'index.php', 'icon' => '⌂'],
         ['label' => 'Salas', 'href' => 'salas.php', 'icon' => '▦'],
         ['label' => 'Biblioteca', 'href' => 'biblioteca.php', 'icon' => '📚'],
-        ['label' => 'Perfil', 'href' => 'perfil.php', 'icon' => '◉'],
+        ['label' => 'Perfil', 'href' => 'perfil-dashboard.php', 'icon' => '◉'],
     ],
 ];
 
@@ -36,7 +36,7 @@ $menuMobile = [
         ['label' => 'Salas', 'href' => 'salas.php', 'icon' => '▦'],
         ['label' => 'Biblioteca', 'href' => 'biblioteca.php', 'icon' => '📚'],
         ['label' => 'Exercícios', 'href' => 'quiz.php', 'icon' => '☑'],
-        ['label' => 'Perfil', 'href' => 'perfil.php', 'icon' => '◉'],
+        ['label' => 'Perfil', 'href' => 'perfil-dashboard.php', 'icon' => '◉'],
     ],
     'professor' => [
         ['label' => 'Início', 'href' => 'index.php', 'icon' => '⌂'],
@@ -44,14 +44,14 @@ $menuMobile = [
         ['label' => 'Criar', 'href' => 'criar-sala.php', 'icon' => '＋'],
         ['label' => 'Biblioteca', 'href' => 'biblioteca.php', 'icon' => '📚'],
         ['label' => 'Ranking', 'href' => 'ranking.php', 'icon' => '♜'],
-        ['label' => 'Perfil', 'href' => 'perfil.php', 'icon' => '◉'],
+        ['label' => 'Perfil', 'href' => 'perfil-dashboard.php', 'icon' => '◉'],
     ],
     'instituicao' => [
         ['label' => 'Início', 'href' => 'index.php', 'icon' => '⌂'],
         ['label' => 'Salas', 'href' => 'salas.php', 'icon' => '▦'],
         ['label' => 'Biblioteca', 'href' => 'biblioteca.php', 'icon' => '📚'],
         ['label' => 'Feed', 'href' => 'feed.php', 'icon' => '✦'],
-        ['label' => 'Perfil', 'href' => 'perfil.php', 'icon' => '◉'],
+        ['label' => 'Perfil', 'href' => 'perfil-dashboard.php', 'icon' => '◉'],
     ],
 ];
 
@@ -79,7 +79,7 @@ if (isset($_SESSION['usuario_id'])):
     $usrName = $_SESSION['usuario_nome'] ?? $_SESSION['usuario_username'] ?? 'Usuário';
     ?>
     <div style="position:fixed;right:22px;top:16px;z-index:40;display:flex;align-items:center;gap:10px">
-        <a href="perfil.php" style="display:flex;align-items:center;gap:10px;color:var(--text);text-decoration:none">
+        <a href="perfil-dashboard.php" style="display:flex;align-items:center;gap:10px;color:var(--text);text-decoration:none">
             <img src="assets/images/avatars/default.png" alt="Avatar" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid #fff"> <strong style="font-size:14px"><?= htmlspecialchars($usrName) ?></strong>
         </a>
         <a href="logout.php" style="padding:8px 10px;border-radius:10px;background:transparent;border:1px solid var(--border);font-size:13px">Sair</a>
