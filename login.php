@@ -3,7 +3,7 @@ declare(strict_types=1);
 session_start();
 
 if (isset($_SESSION['usuario_id'])) {
-    header('Location: dashboard.php');
+    header('Location: perfil-dashboard.php');
     exit;
 }
 

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 session_start();
 require_once __DIR__ . '/includes/helpers.php';
+require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/conexao.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -35,22 +36,37 @@ if ($novaSenha !== $confirmarNovaSenha) {
 }
 
 try {
+    /*
+     * Não reutilizar o mesmo placeholder quando ATTR_EMULATE_PREPARES=false.
+     * A busca também não depende de colunas opcionais do restante do sistema.
+     */
     $stmt = $pdo->prepare(
-        'SELECT id FROM usuarios
-         WHERE (LOWER(email) = LOWER(:identificador) OR LOWER(username) = LOWER(:identificador))
-           AND perfil IN (\'estudante\', \'professor\')
+        'SELECT u.*
+         FROM usuarios u
+         WHERE LOWER(u.email) = LOWER(:identificador_email)
+            OR LOWER(u.username) = LOWER(:identificador_username)
          LIMIT 1'
     );
-    $stmt->execute(['identificador' => $identificador]);
+
+    $stmt->execute([
+        'identificador_email' => $identificador,
+        'identificador_username' => $identificador,
+    ]);
+
     $usuario = $stmt->fetch();
 
-    if (!$usuario) {
-        $voltar('Nenhuma conta ativa foi encontrada para esse e-mail ou usuário.');
+    if (!$usuario || !isset($usuario['id']) || !is_login_perfil_permitido($usuario['perfil'] ?? '')) {
+        $voltar('Nenhuma conta de estudante ou professor foi encontrada para esse e-mail ou usuário.');
+    }
+
+    $hash = password_hash($novaSenha, PASSWORD_DEFAULT);
+    if ($hash === false) {
+        throw new RuntimeException('Falha ao gerar o hash da nova senha.');
     }
 
     $stmt = $pdo->prepare('UPDATE usuarios SET senha = :senha WHERE id = :id');
     $stmt->execute([
-        'senha' => password_hash($novaSenha, PASSWORD_DEFAULT),
+        'senha' => $hash,
         'id' => (int) $usuario['id'],
     ]);
 
@@ -58,6 +74,12 @@ try {
     header('Location: login.php');
     exit;
 } catch (PDOException $e) {
+    error_log('[S.A Education][redefinir_senha][PDO] ' . $e->getMessage());
+    $_SESSION['erro_redefinir'] = 'Não foi possível redefinir a senha agora. Tente novamente.';
+    header('Location: redefinir-senha.php');
+    exit;
+} catch (RuntimeException $e) {
+    error_log('[S.A Education][redefinir_senha] ' . $e->getMessage());
     $_SESSION['erro_redefinir'] = 'Não foi possível redefinir a senha agora. Tente novamente.';
     header('Location: redefinir-senha.php');
     exit;
