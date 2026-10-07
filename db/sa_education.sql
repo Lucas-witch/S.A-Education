@@ -189,16 +189,6 @@ CREATE TABLE `usuarios` (
   `criado_em` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Despejando dados para a tabela `usuarios`
---
-
-INSERT INTO `usuarios` (`id`, `nome_completo`, `email`, `username`, `senha`, `perfil`, `plano_id`, `perfil_imagem`, `oauth_provider`, `oauth_id`, `premium_ativo`, `criado_em`) VALUES
-(1, 'Beatriz da Silva Souza', 'beafandebts369@gmail.com', 'bea_49873', '$2y$10$TniutsQZYw8CGIV6zzlQ7eQ6d6faYIT3gX8zmcMnTxsn5PTCLUImO', 'estudante', 1, NULL, NULL, NULL, 0, '2026-09-28 19:25:36'),
-(2, 'Ana Clara', 'ana.clara@example.com', 'anaclara', '$2y$10$QAzhtHF7mbtxZ8oSvUoKIObhJrvtGDzk4mxIC15moXdaNLzjDQ3aW', 'estudante', 1, NULL, NULL, NULL, 0, '2026-09-28 19:37:08'),
-(3, 'Lucas', 'lucas@example.com', 'lucas', '$2y$10$J6RlmOzW7BxI5tcNnNz5GeIGAzXXoDsD/G/ROuIZ.9yZQ/y.zaQSO', 'professor', 2, NULL, NULL, NULL, 1, '2026-09-28 19:37:08'),
-(4, 'Marina', 'marina@example.com', 'marina', '$2y$10$Rq3ZmBo7GGaTA9ihZB.ugelAXyLEcKMQa0LwHQywsRVGRaNVgrgmq', 'estudante', 1, NULL, NULL, NULL, 0, '2026-09-28 19:37:08'),
-(5, 'Administrador SA', 'admin@saeducation.com', 'admin', '$2y$10$oNmuoPMemq9T3nxWwY.mquLemE39NbssXs9NWs7TyTX2DRRaVvtmC', 'estudante', 2, NULL, NULL, NULL, 1, '2026-10-05 19:45:17');
 
 --
 -- Índices para tabelas despejadas

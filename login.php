@@ -52,7 +52,7 @@ require_once __DIR__ . '/includes/helpers.php';
 
             <div class="form-row">
                 <label class="check"><input type="checkbox" name="lembrar"> Lembrar de mim?</label>
-                <a href="#" class="small-link">Esqueci minha senha</a>
+                <a href="redefinir-senha.php" class="small-link">Esqueci minha senha</a>
             </div>
 
             <button class="btn btn-primary" type="submit">Entrar</button>

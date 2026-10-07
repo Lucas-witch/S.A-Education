@@ -1,5 +1,6 @@
 <?php
 // Simple seeder for development. Run from CLI: php seed/seed.php
+// This project intentionally avoids demo users in the database.
 require_once __DIR__ . '/../conexao.php';
 
 $plans = [
@@ -7,11 +8,7 @@ $plans = [
     ['nome' => 'premium', 'preco' => 29.90, 'descricao' => 'Plano premium', 'pode_postar_aulas_ilimitadas' => true, 'pode_criar_salas' => true, 'pode_criar_comunidades_privadas' => true, 'pode_postar_artigos' => true, 'limite_video_aula_free' => null],
 ];
 
-$users = [
-    ['nome' => 'Ana Clara', 'email' => 'ana.clara@example.com', 'username' => 'anaclara', 'senha' => 'Senha@123', 'perfil' => 'estudante', 'plano' => 'free', 'premium_ativo' => false],
-    ['nome' => 'Lucas', 'email' => 'lucas@example.com', 'username' => 'lucas', 'senha' => 'Senha@123', 'perfil' => 'professor', 'plano' => 'premium', 'premium_ativo' => true],
-    ['nome' => 'Marina', 'email' => 'marina@example.com', 'username' => 'marina', 'senha' => 'Senha@123', 'perfil' => 'estudante', 'plano' => 'free', 'premium_ativo' => false],
-];
+$users = [];
 
 $salas = [
     ['nome' => 'Matemática Avançada', 'prof' => 'Prof. Lucas', 'alunos' => 24, 'materia' => 'Matemática', 'icone' => 'assets/images/room_icons/math.svg', 'codigo' => 'MATH01'],
@@ -39,22 +36,24 @@ try {
         ]);
     }
 
-    $usuarioStmt = $pdo->prepare(
-        'INSERT INTO usuarios (nome_completo, email, username, senha, perfil, plano_id, premium_ativo)
-         VALUES (:nome, :email, :username, :senha, :perfil, (SELECT id FROM planos WHERE nome = :plano), :premium_ativo)
-         ON DUPLICATE KEY UPDATE nome_completo = VALUES(nome_completo), senha = VALUES(senha), perfil = VALUES(perfil), plano_id = VALUES(plano_id), premium_ativo = VALUES(premium_ativo)'
-    );
+    if ($users !== []) {
+        $usuarioStmt = $pdo->prepare(
+            'INSERT INTO usuarios (nome_completo, email, username, senha, perfil, plano_id, premium_ativo)
+             VALUES (:nome, :email, :username, :senha, :perfil, (SELECT id FROM planos WHERE nome = :plano), :premium_ativo)
+             ON DUPLICATE KEY UPDATE nome_completo = VALUES(nome_completo), senha = VALUES(senha), perfil = VALUES(perfil), plano_id = VALUES(plano_id), premium_ativo = VALUES(premium_ativo)'
+        );
 
-    foreach ($users as $u) {
-        $usuarioStmt->execute([
-            'nome' => $u['nome'],
-            'email' => $u['email'],
-            'username' => $u['username'],
-            'senha' => password_hash($u['senha'], PASSWORD_DEFAULT),
-            'perfil' => $u['perfil'],
-            'plano' => $u['plano'],
-            'premium_ativo' => $u['premium_ativo'] ? 1 : 0,
-        ]);
+        foreach ($users as $u) {
+            $usuarioStmt->execute([
+                'nome' => $u['nome'],
+                'email' => $u['email'],
+                'username' => $u['username'],
+                'senha' => password_hash($u['senha'], PASSWORD_DEFAULT),
+                'perfil' => $u['perfil'],
+                'plano' => $u['plano'],
+                'premium_ativo' => $u['premium_ativo'] ? 1 : 0,
+            ]);
+        }
     }
 
     $salaStmt = $pdo->prepare('INSERT INTO salas (nome, prof, alunos, materia, icone, codigo) VALUES (:nome, :prof, :alunos, :materia, :icone, :codigo) ON DUPLICATE KEY UPDATE nome = VALUES(nome)');

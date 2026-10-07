@@ -34,6 +34,49 @@ function create_database_if_needed(string $host, int $port, string $user, string
     $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$db}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
 }
 
+function load_database_schema(PDO $pdo, string $baseDir): void {
+    $candidates = [
+        $baseDir . '/db/sa_education.sql',
+        $baseDir . '/db/schema.sql',
+    ];
+
+    $schemaPath = null;
+    foreach ($candidates as $candidate) {
+        if (file_exists($candidate)) {
+            $schemaPath = $candidate;
+            break;
+        }
+    }
+
+    if ($schemaPath === null) {
+        return;
+    }
+
+    $schema = file_get_contents($schemaPath);
+    if ($schema === false || $schema === '') {
+        return;
+    }
+
+    $tableCheck = $pdo->query("SHOW TABLES LIKE 'usuarios'");
+    if ($tableCheck !== false && $tableCheck->fetch() !== false) {
+        $tableCheck->closeCursor();
+        return;
+    }
+
+    if ($tableCheck !== false) {
+        $tableCheck->closeCursor();
+    }
+
+    $statements = array_filter(
+        array_map('trim', preg_split('/;\s*(?:\r?\n|$)/', $schema)),
+        static fn (string $statement): bool => $statement !== ''
+    );
+
+    foreach ($statements as $statement) {
+        $pdo->exec($statement);
+    }
+}
+
 try {
     $dsn = "mysql:host={$host};port={$port};dbname={$db};charset={$charset}";
     $pdo = new PDO($dsn, $user, $pass, $options);
@@ -55,16 +98,6 @@ try {
     }
 }
 
-$schemaPath = __DIR__ . '/db/schema.sql';
-if (file_exists($schemaPath)) {
-    $schema = file_get_contents($schemaPath);
-    if ($schema !== false && $schema !== '') {
-        $statements = array_filter(array_map('trim', preg_split('/;\s*(?:\r?\n|$)/', $schema)), static fn (string $statement): bool => $statement !== '');
+load_database_schema($pdo, __DIR__);
 
-        foreach ($statements as $statement) {
-            $pdo->exec($statement);
-        }
-    }
-}
-
-unset($schemaPath, $schema, $statements);
+unset($schemaPath, $schema, $statements, $tableCheck);
