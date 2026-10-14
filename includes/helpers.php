@@ -1,6 +1,26 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+function session_configure_security(): void {
+    if (session_status() !== PHP_SESSION_NONE) {
+        return;
+    }
+
+    $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['HTTP_HOST']) && str_contains(strtolower((string) $_SERVER['HTTP_HOST']), 'localhost'));
+
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'domain' => '',
+        'secure' => $secure,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.cookie_httponly', '1');
+    ini_set('session.cookie_samesite', 'Lax');
+    if ($secure) {
+        ini_set('session.cookie_secure', '1');
+    }
 }
 
 if (!defined('DEV_MODE')) {

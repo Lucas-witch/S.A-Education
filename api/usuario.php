@@ -1,7 +1,11 @@
 <?php
 declare(strict_types=1);
 header('Content-Type: application/json; charset=utf-8');
-if (session_status() === PHP_SESSION_NONE) session_start();
+require_once __DIR__ . '/../includes/helpers.php';
+if (session_status() === PHP_SESSION_NONE) {
+    session_configure_security();
+    session_start();
+}
 require_once __DIR__ . '/../conexao.php';
 
 if (!isset($_SESSION['usuario_id'])) {

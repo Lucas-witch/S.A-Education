@@ -1,8 +1,9 @@
 <?php
 declare(strict_types=1);
 
-session_start();
 require_once __DIR__ . '/includes/helpers.php';
+session_configure_security();
+session_start();
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/conexao.php';
 

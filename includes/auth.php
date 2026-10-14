@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/helpers.php';
+session_configure_security();
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -73,8 +75,8 @@ function set_authenticated_session(array $usuario): void {
     $_SESSION['usuario_escritos_pontuacao'] = $usuario['escritos_pontuacao'] ?? null;
     $_SESSION['usuario_ensaios_pontuacao'] = $usuario['ensaios_pontuacao'] ?? null;
     $_SESSION['usuario_redacoes_pontuacao'] = $usuario['redacoes_pontuacao'] ?? null;
-    $_SESSION['usuario_acertos_timeline'] = is_array($acertosTimeline) ? $acertosTimeline : [35, 42, 48, 58, 66, 74, 82];
-    $_SESSION['usuario_erros_timeline'] = is_array($errosTimeline) ? $errosTimeline : [52, 48, 42, 36, 29, 23, 18];
+    $_SESSION['usuario_acertos_timeline'] = is_array($acertosTimeline) ? $acertosTimeline : [];
+    $_SESSION['usuario_erros_timeline'] = is_array($errosTimeline) ? $errosTimeline : [];
 }
 
 function is_estudante(): bool {

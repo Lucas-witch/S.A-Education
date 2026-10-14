@@ -19,6 +19,92 @@ $estatisticas = [
     'publicacoes' => 0,
 ];
 
+function registrar_tentativa_atividade(PDO $pdo, int $usuarioId, string $tipo, ?int $atividadeId, string $categoria, int $respostasCorretas, int $respostasIncorretas, int $totalRespostas = 0): void {
+    if ($usuarioId <= 0) {
+        return;
+    }
+
+    $tipo = strtolower(trim($tipo));
+    if (!in_array($tipo, ['exercicio', 'quiz'], true)) {
+        throw new InvalidArgumentException('Tipo de atividade inválido para registro de tentativas.');
+    }
+
+    $totalRespostas = max(0, $totalRespostas > 0 ? $totalRespostas : $respostasCorretas + $respostasIncorretas);
+    $acertos = max(0, $respostasCorretas);
+    $erros = max(0, $respostasIncorretas);
+    $percentual = $totalRespostas > 0 ? round(($acertos / $totalRespostas) * 100, 2) : 0.0;
+
+    $stmt = $pdo->prepare('INSERT INTO tentativas_atividade (usuario_id, tipo, atividade_id, categoria, respostas_corretas, respostas_incorretas, total_respostas, percentual_acerto, concluido, criado_em) VALUES (:usuario_id, :tipo, :atividade_id, :categoria, :respostas_corretas, :respostas_incorretas, :total_respostas, :percentual_acerto, 1, NOW())');
+    $stmt->execute([
+        ':usuario_id' => $usuarioId,
+        ':tipo' => $tipo,
+        ':atividade_id' => $atividadeId,
+        ':categoria' => $categoria !== '' ? $categoria : 'geral',
+        ':respostas_corretas' => $acertos,
+        ':respostas_incorretas' => $erros,
+        ':total_respostas' => $totalRespostas,
+        ':percentual_acerto' => $percentual,
+    ]);
+}
+
+function obter_dados_dashboard_usuario(PDO $pdo, int $usuarioId): array {
+    $dados = [
+        'acertos' => [],
+        'erros' => [],
+        'labels' => [],
+        'total_acertos' => 0,
+        'total_erros' => 0,
+        'total_tentativas' => 0,
+        'total_respostas' => 0,
+        'percentual_acerto' => 0.0,
+        'salas_recentes' => [],
+    ];
+
+    if ($usuarioId <= 0) {
+        return $dados;
+    }
+
+    try {
+        $stmt = $pdo->prepare('SELECT SUM(respostas_corretas) AS total_acertos, SUM(respostas_incorretas) AS total_erros, SUM(total_respostas) AS total_respostas, COUNT(*) AS total_tentativas FROM tentativas_atividade WHERE usuario_id = :usuario_id AND concluido = 1');
+        $stmt->execute([':usuario_id' => $usuarioId]);
+        $resumo = $stmt->fetch();
+
+        $dados['total_acertos'] = (int) ($resumo['total_acertos'] ?? 0);
+        $dados['total_erros'] = (int) ($resumo['total_erros'] ?? 0);
+        $dados['total_tentativas'] = (int) ($resumo['total_tentativas'] ?? 0);
+        $dados['total_respostas'] = (int) ($resumo['total_respostas'] ?? ($dados['total_acertos'] + $dados['total_erros']));
+        $dados['percentual_acerto'] = $dados['total_respostas'] > 0 ? round(($dados['total_acertos'] / $dados['total_respostas']) * 100, 2) : 0.0;
+
+        $stmt = $pdo->prepare('SELECT DATE_FORMAT(criado_em, "%Y-%m") AS periodo, SUM(respostas_corretas) AS acertos, SUM(respostas_incorretas) AS erros FROM tentativas_atividade WHERE usuario_id = :usuario_id AND concluido = 1 GROUP BY DATE_FORMAT(criado_em, "%Y-%m") ORDER BY periodo ASC LIMIT 7');
+        $stmt->execute([':usuario_id' => $usuarioId]);
+        $linhas = $stmt->fetchAll();
+
+        foreach ($linhas as $linha) {
+            $periodo = (string) ($linha['periodo'] ?? '');
+            if ($periodo === '') {
+                continue;
+            }
+
+            $date = DateTimeImmutable::createFromFormat('Y-m', $periodo);
+            $dados['labels'][] = $date ? $date->format('M') : $periodo;
+            $dados['acertos'][] = (int) ($linha['acertos'] ?? 0);
+            $dados['erros'][] = (int) ($linha['erros'] ?? 0);
+        }
+    } catch (PDOException $e) {
+        return $dados;
+    }
+
+    try {
+        $stmt = $pdo->prepare('SELECT s.id, s.nome, s.prof, s.alunos, s.materia, s.icone, s.privacidade, s.descricao FROM salas_usuarios su INNER JOIN salas s ON s.id = su.sala_id WHERE su.usuario_id = :usuario_id AND su.status = "ativo" ORDER BY su.entrou_em DESC LIMIT 3');
+        $stmt->execute([':usuario_id' => $usuarioId]);
+        $dados['salas_recentes'] = $stmt->fetchAll();
+    } catch (PDOException $e) {
+        $dados['salas_recentes'] = [];
+    }
+
+    return $dados;
+}
+
 if (isset($pdo) && $pdo instanceof PDO) {
     try {
         $stmt = $pdo->query('SELECT id, nome, prof, alunos, materia, icone, privacidade, descricao FROM salas ORDER BY criado_em DESC LIMIT 10');
@@ -74,14 +160,14 @@ if (isset($pdo) && $pdo instanceof PDO) {
 
 if (empty($salas) && empty($recentes) && empty($ranking) && empty($bibliotecaRecente) && empty($publicacoesRecentes)) {
     $salas = [
-        ['id' => 1, 'nome' => 'Matemática Básica', 'prof' => 'Prof. Lucas', 'alunos' => 25, 'materia' => 'Matemática', 'icone' => 'assets/images/room_icons/math.svg', 'privacidade' => 'publica', 'descricao' => 'Sala de revisão e práticas.'],
-        ['id' => 2, 'nome' => 'Química Orgânica', 'prof' => 'Profa. Juliana', 'alunos' => 20, 'materia' => 'Química', 'icone' => 'assets/images/room_icons/chemistry.svg', 'privacidade' => 'publica', 'descricao' => 'Reações e fundamentos.'],
-        ['id' => 3, 'nome' => 'Literatura Brasileira', 'prof' => 'Prof. Felipe', 'alunos' => 15, 'materia' => 'Linguagens', 'icone' => 'assets/images/room_icons/literature.svg', 'privacidade' => 'publica', 'descricao' => 'Leitura e análise crítica.'],
+        ['id' => 1, 'nome' => 'Matemática Básica', 'prof' => 'Prof. Lucas', 'alunos' => 25, 'materia' => 'Matemática', 'icone' => 'assets/images/icons/matematica-icon.png', 'privacidade' => 'publica', 'descricao' => 'Sala de revisão e práticas.'],
+        ['id' => 2, 'nome' => 'Química Orgânica', 'prof' => 'Profa. Juliana', 'alunos' => 20, 'materia' => 'Química', 'icone' => 'assets/images/icons/química.png', 'privacidade' => 'publica', 'descricao' => 'Reações e fundamentos.'],
+        ['id' => 3, 'nome' => 'Literatura Brasileira', 'prof' => 'Prof. Felipe', 'alunos' => 15, 'materia' => 'Linguagens', 'icone' => 'assets/images/icons/portugues.png', 'privacidade' => 'publica', 'descricao' => 'Leitura e análise crítica.'],
     ];
     $recentes = [
-        ['id' => 1, 'nome' => 'Matemática Avançada', 'prof' => 'Prof. Lucas', 'alunos' => 24, 'icone' => 'assets/images/room_icons/math.svg'],
-        ['id' => 2, 'nome' => 'História do Brasil', 'prof' => 'Profa. Marina', 'alunos' => 18, 'icone' => 'assets/images/room_icons/history.svg'],
-        ['id' => 3, 'nome' => 'Física Moderna', 'prof' => 'Prof. Rafael', 'alunos' => 32, 'icone' => 'assets/images/room_icons/physics.svg'],
+        ['id' => 1, 'nome' => 'Matemática Avançada', 'prof' => 'Prof. Lucas', 'alunos' => 24, 'icone' => 'assets/images/icons/matematica-icon.png'],
+        ['id' => 2, 'nome' => 'História do Brasil', 'prof' => 'Profa. Marina', 'alunos' => 18, 'icone' => 'assets/images/icons/historia.png'],
+        ['id' => 3, 'nome' => 'Física Moderna', 'prof' => 'Prof. Rafael', 'alunos' => 32, 'icone' => 'assets/images/icons/user-icon.png'],
     ];
     $ranking = [
         ['nome' => 'Ana Clara', 'pontos' => 2450, 'pos' => 1],

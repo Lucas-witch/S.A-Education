@@ -69,20 +69,20 @@ $heroLink = [
     <div class="trophy" aria-label="Conquista">🏆</div>
 </section>
 
-<section class="stats-grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0;">
-    <div class="card" style="padding:18px;">
+<section class="stats-grid" aria-label="Estatísticas da plataforma">
+    <div class="card stat-card">
         <strong><?= (int) $estatisticas['salas'] ?></strong>
         <p>Salas</p>
     </div>
-    <div class="card" style="padding:18px;">
+    <div class="card stat-card">
         <strong><?= (int) $estatisticas['biblioteca'] ?></strong>
         <p>Biblioteca</p>
     </div>
-    <div class="card" style="padding:18px;">
+    <div class="card stat-card">
         <strong><?= (int) $estatisticas['publicacoes'] ?></strong>
         <p>Publicações</p>
     </div>
-    <div class="card" style="padding:18px;">
+    <div class="card stat-card">
         <strong><?= (int) $estatisticas['instituicoes'] ?></strong>
         <p>Instituições</p>
     </div>
@@ -93,8 +93,8 @@ $heroLink = [
 </div>
 <div class="grid grid-3">
     <?php foreach ($recentes as $r): ?>
-        <?php $roomIcon = isset($r['icone']) && $r['icone'] !== '' ? (string) $r['icone'] : subject_icon_for((string) ($r['materia'] ?? '')); ?>
-        <a class="card room-card" href="sala.php">
+        <?php $roomId = (int) ($r['id'] ?? 0); $roomIcon = isset($r['icone']) && $r['icone'] !== '' ? (string) $r['icone'] : subject_icon_for((string) ($r['materia'] ?? '')); ?>
+        <a class="card room-card" href="sala.php?id=<?= $roomId ?>">
             <div class="room-icon">
                 <img src="<?= htmlspecialchars($roomIcon, ENT_QUOTES, 'UTF-8') ?>" alt="Ícone da matéria" style="width:38px;height:38px;object-fit:contain;display:block;">
             </div>
@@ -102,7 +102,7 @@ $heroLink = [
                 <h3><?= htmlspecialchars((string) ($r['nome'] ?? 'Sala')) ?></h3>
                 <p><?= htmlspecialchars((string) ($r['prof'] ?? 'Professor')) ?> · <?= (int) ($r['alunos'] ?? 0) ?> alunos</p>
             </div>
-            <span class="arrow">›</span>
+            <span class="arrow" aria-hidden="true">›</span>
         </a>
     <?php endforeach; ?>
 </div>
@@ -112,11 +112,11 @@ $heroLink = [
 </div>
 <div class="grid grid-3">
     <?php foreach ($bibliotecaRecente as $item): ?>
-        <article class="card" style="padding:18px;">
+        <article class="card library-item">
             <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">
                 <?= htmlspecialchars(strtoupper((string) ($item['tipo'] ?? 'material'))) ?>
             </div>
-            <h3 style="margin:10px 0 4px;"><?= htmlspecialchars((string) ($item['titulo'] ?? 'Item')) ?></h3>
+            <h3><?= htmlspecialchars((string) ($item['titulo'] ?? 'Item')) ?></h3>
             <p style="margin:0;color:var(--muted);"><?= htmlspecialchars((string) ($item['autor'] ?? 'Autor')) ?></p>
             <small style="display:block;margin-top:8px;"><?= htmlspecialchars((string) ($item['disponibilidade'] ?? 'gratis')) ?></small>
         </article>
@@ -126,9 +126,9 @@ $heroLink = [
 <div class="section-title" style="margin-top:28px;">
     <h2>Últimas publicações</h2><a href="feed.php">Ver feed</a>
 </div>
-<div class="card" style="padding:18px;">
+<div class="card content-list">
     <?php foreach ($publicacoesRecentes as $pub): ?>
-        <div style="padding:10px 0;border-bottom:1px solid var(--border);">
+        <div class="feed-item" style="border-bottom:1px solid var(--border);">
             <strong><?= htmlspecialchars((string) ($pub['titulo'] ?? 'Publicação')) ?></strong>
             <div style="font-size:12px;color:var(--muted);margin-top:4px;">
                 <?= htmlspecialchars((string) ($pub['tipo'] ?? 'material')) ?> · <?= htmlspecialchars((string) ($pub['status'] ?? 'publicado')) ?>

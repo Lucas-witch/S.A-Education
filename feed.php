@@ -1,37 +1,45 @@
 <?php
+require 'includes/helpers.php';
+if (session_status() === PHP_SESSION_NONE) {
+    session_configure_security();
+    session_start();
+}
 require 'includes/auth.php';
 require 'includes/data.php';
 require_auth();
 
-$publicacoes = [
-    [
-        'titulo' => 'Como estudar com foco em 3 passos?',
-        'autor' => 'Ana Clara',
-        'tipo' => 'Artigo',
-        'tempo' => 'há 2h',
-        'texto' => 'A disciplina melhora quando você organiza o tempo, elimina distrações e revisa o que aprendeu em ciclos curtos.',
-        'tag' => 'Produtividade',
-        'premium' => false,
-    ],
-    [
-        'titulo' => 'Aula prática: revisão de funções exponenciais',
-        'autor' => 'Lucas',
-        'tipo' => 'Vídeo aula',
-        'tempo' => 'há 6h',
-        'texto' => 'Uma aula rápida para revisar conceitos fundamentais e entender padrões em gráficos e aplicações.',
-        'tag' => 'Matemática',
-        'premium' => true,
-    ],
-    [
-        'titulo' => 'Redação modelo: argumentação e clareza',
-        'autor' => 'Marina',
-        'tipo' => 'Redação',
-        'tempo' => 'há 1 dia',
-        'texto' => 'Apresentamos um exemplo de redação com estrutura clara, argumento central e boas conexões entre ideias.',
-        'tag' => 'Linguagens',
-        'premium' => false,
-    ],
-];
+$pesquisa = trim((string) ($_GET['q'] ?? ''));
+$tipoFiltro = strtolower(trim((string) ($_GET['tipo'] ?? '')));
+$acessoFiltro = strtolower(trim((string) ($_GET['acesso'] ?? '')));
+$usuarioPremium = !empty($_SESSION['usuario_premium_ativo']) || strtolower((string) ($_SESSION['usuario_plano'] ?? 'free')) === 'premium';
+
+$where = ['p.status = :status'];
+$params = [':status' => 'publicado'];
+
+if ($pesquisa !== '') {
+    $where[] = '(LOWER(p.titulo) LIKE :pesquisa OR LOWER(COALESCE(p.categoria, "")) LIKE :pesquisa OR LOWER(COALESCE(p.resumo, "")) LIKE :pesquisa OR LOWER(COALESCE(p.conteudo, "")) LIKE :pesquisa OR LOWER(COALESCE(u.nome_completo, "")) LIKE :pesquisa)';
+    $params[':pesquisa'] = '%' . strtolower($pesquisa) . '%';
+}
+
+if ($tipoFiltro !== '') {
+    $where[] = 'LOWER(p.tipo) LIKE :tipo';
+    $params[':tipo'] = '%' . strtolower(str_replace(' ', '_', $tipoFiltro)) . '%';
+}
+
+if ($acessoFiltro === 'gratuito') {
+    $where[] = 'p.is_premium_only = 0';
+} elseif ($acessoFiltro === 'premium') {
+    $where[] = 'p.is_premium_only = 1';
+}
+
+if (!$usuarioPremium) {
+    $where[] = 'p.is_premium_only = 0';
+}
+
+$sql = 'SELECT p.*, u.nome_completo AS autor, u.perfil_imagem AS autor_imagem FROM publicacoes p LEFT JOIN usuarios u ON u.id = p.usuario_id WHERE ' . implode(' AND ', $where) . ' ORDER BY p.publicado_em DESC';
+$stmt = $pdo->prepare($sql);
+$stmt->execute($params);
+$publicacoes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!doctype html>
 <html lang="pt-BR">
@@ -68,30 +76,51 @@ $publicacoes = [
         </div>
       </header>
 
-      <div class="feed-search" aria-label="Buscar publicações">
+      <form method="get" class="feed-search" aria-label="Buscar publicações">
         <span class="search-icon">⌕</span>
-        <input id="feedSearch" type="search" placeholder="Buscar por #tag, assunto, autor ou tema" aria-label="Buscar publicações">
-      </div>
+        <input id="feedSearch" name="q" type="search" value="<?= htmlspecialchars((string) $pesquisa, ENT_QUOTES, 'UTF-8') ?>" placeholder="Buscar por #tag, assunto, autor ou tema" aria-label="Buscar publicações">
+        <select name="tipo" aria-label="Tipo de publicação" style="padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff;">
+          <option value="">Tipo</option>
+          <option value="video_aula" <?= $tipoFiltro === 'video_aula' ? 'selected' : '' ?>>Vídeo aula</option>
+          <option value="artigo" <?= $tipoFiltro === 'artigo' ? 'selected' : '' ?>>Artigo</option>
+          <option value="redacao" <?= $tipoFiltro === 'redacao' ? 'selected' : '' ?>>Redação</option>
+          <option value="material" <?= $tipoFiltro === 'material' ? 'selected' : '' ?>>Material</option>
+        </select>
+        <select name="acesso" aria-label="Filtrar por acesso" style="padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff;">
+          <option value="">Acesso</option>
+          <option value="gratuito" <?= $acessoFiltro === 'gratuito' ? 'selected' : '' ?>>Gratuito</option>
+          <option value="premium" <?= $acessoFiltro === 'premium' ? 'selected' : '' ?>>Premium</option>
+        </select>
+      </form>
 
       <?php foreach ($publicacoes as $pub): ?>
-        <?php $feedTags = implode(' ', array_filter(['#' . strtolower(str_replace(' ', '', (string) $pub['tag'])), '#' . strtolower(str_replace(' ', '', (string) $pub['tipo'])), '#gratuito', '#aula'])); ?>
-        <article class="feed-card" data-feed-text="<?= htmlspecialchars((string) ($pub['titulo'] . ' ' . $pub['autor'] . ' ' . $pub['tag'] . ' ' . $pub['tipo'] . ' ' . $pub['texto'] . ' ' . $feedTags), ENT_QUOTES, 'UTF-8') ?>" data-feed-tags="<?= htmlspecialchars((string) $feedTags, ENT_QUOTES, 'UTF-8') ?>">
+        <?php
+        $titulo = (string) ($pub['titulo'] ?? 'Publicação');
+        $autor = (string) ($pub['autor'] ?? 'Equipe S.A');
+        $tipo = str_replace('_', ' ', strtolower((string) ($pub['tipo'] ?? 'post')));
+        $tipoFormatado = ucwords($tipo);
+        $tempo = $pub['publicado_em'] ?? 'agora';
+        $texto = trim((string) ($pub['resumo'] ?? $pub['conteudo'] ?? '')) ?: 'Publicação disponível na biblioteca da plataforma.';
+        $tag = (string) ($pub['categoria'] ?? 'Geral');
+        $premiumOnly = !empty($pub['is_premium_only']);
+        ?>
+        <article class="feed-card" data-feed-text="<?= htmlspecialchars((string) ($titulo . ' ' . $autor . ' ' . $tag . ' ' . $tipoFormatado . ' ' . $texto), ENT_QUOTES, 'UTF-8') ?>" data-feed-tags="<?= htmlspecialchars((string) ('#' . strtolower(str_replace(' ', '', $tag)) . ' #' . strtolower(str_replace(' ', '', $tipoFormatado))), ENT_QUOTES, 'UTF-8') ?>">
           <div class="feed-head">
             <div class="feed-author">
-              <div class="avatar"><?= strtoupper(substr($pub['autor'],0,1)) ?></div>
+              <div class="avatar"><?= strtoupper(substr($autor,0,1)) ?></div>
               <div>
-                <strong><?= htmlspecialchars($pub['autor']) ?></strong>
-                <div class="feed-meta"><?= htmlspecialchars($pub['tipo']) ?> · <?= htmlspecialchars($pub['tempo']) ?></div>
+                <strong><?= htmlspecialchars($autor) ?></strong>
+                <div class="feed-meta"><?= htmlspecialchars($tipoFormatado) ?> · <?= htmlspecialchars((string) $tempo) ?></div>
               </div>
             </div>
-            <?php if ($pub['premium']): ?>
+            <?php if ($premiumOnly): ?>
               <span class="feed-badge">Premium</span>
             <?php endif; ?>
           </div>
 
-          <div class="feed-tag"><?= htmlspecialchars($pub['tag']) ?></div>
-          <h2><?= htmlspecialchars($pub['titulo']) ?></h2>
-          <p><?= htmlspecialchars($pub['texto']) ?></p>
+          <div class="feed-tag"><?= htmlspecialchars($tag) ?></div>
+          <h2><?= htmlspecialchars($titulo) ?></h2>
+          <p><?= htmlspecialchars($texto) ?></p>
         </article>
       <?php endforeach; ?>
     </div>

@@ -49,15 +49,23 @@ if ($avatarSource === null || $avatarSource === '') {
 }
 
 $summaryStats = [
-    'pontos' => (int) ($_SESSION['usuario_pontos'] ?? 2540),
-    'moedas' => (int) ($_SESSION['usuario_moedas'] ?? 1480),
-    'seguidores' => (int) ($_SESSION['usuario_seguidores'] ?? 864),
-    'grupos' => (int) ($_SESSION['usuario_grupos'] ?? 12),
+    'pontos' => max(0, (int) ($_SESSION['usuario_pontos'] ?? 0)),
+    'moedas' => max(0, (int) ($_SESSION['usuario_moedas'] ?? 0)),
+    'seguidores' => max(0, (int) ($_SESSION['usuario_seguidores'] ?? 0)),
+    'grupos' => max(0, (int) ($_SESSION['usuario_grupos'] ?? 0)),
 ];
 
-$timelineLabels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul'];
-$acertos = is_array($_SESSION['usuario_acertos_timeline'] ?? null) ? array_map('intval', $_SESSION['usuario_acertos_timeline']) : [35, 42, 48, 58, 66, 74, 82];
-$erros = is_array($_SESSION['usuario_erros_timeline'] ?? null) ? array_map('intval', $_SESSION['usuario_erros_timeline']) : [52, 48, 42, 36, 29, 23, 18];
+$performanceData = obter_dados_dashboard_usuario($pdo, (int) ($_SESSION['usuario_id'] ?? 0));
+$timelineLabels = $performanceData['labels'] ?? [];
+$acertos = array_values(array_map('intval', $performanceData['acertos'] ?? []));
+$erros = array_values(array_map('intval', $performanceData['erros'] ?? []));
+$recentRooms = $performanceData['salas_recentes'] ?? [];
+$performanceSummary = [
+    'total_acertos' => (int) ($performanceData['total_acertos'] ?? 0),
+    'total_erros' => (int) ($performanceData['total_erros'] ?? 0),
+    'percentual_acerto' => (float) ($performanceData['percentual_acerto'] ?? 0.0),
+    'total_respostas' => (int) ($performanceData['total_respostas'] ?? 0),
+];
 
 $combinedMetrics = [
     ['label' => 'Aulas', 'value' => (int) ($_SESSION['usuario_horas_aulas'] ?? 38)],
@@ -125,50 +133,39 @@ $errosPoints = build_line_points($erros, $chartWidth, $chartHeight, $chartPaddin
                 </header>
 
                 <section class="panel hero-panel">
-                    <div class="profile-hero">
-                        <div class="profile-cover">
-                            <div class="profile-avatar-shell">
-                                <img src="<?= htmlspecialchars((string) $avatarSource, ENT_QUOTES, 'UTF-8') ?>" alt="Foto de perfil de <?= htmlspecialchars((string) $nomeUsuario, ENT_QUOTES, 'UTF-8') ?>">
-                            </div>
+                    <div class="profile-shell">
+                        <div class="profile-avatar-wrap">
+                            <img src="<?= htmlspecialchars((string) $avatarSource, ENT_QUOTES, 'UTF-8') ?>" alt="Foto de perfil de <?= htmlspecialchars((string) $nomeUsuario, ENT_QUOTES, 'UTF-8') ?>">
                         </div>
 
-                        <div class="profile-meta">
-                            <div class="name-row">
-                                <h2><?= htmlspecialchars((string) $nomeUsuario, ENT_QUOTES, 'UTF-8') ?></h2>
-                                <?php if (in_array($perfilAtual, ['professor', 'instituicao'], true)): ?>
-                                    <span class="verified-badge" aria-label="<?= htmlspecialchars((string) $verifiedLabel, ENT_QUOTES, 'UTF-8') ?>">
-                                        <img src="<?= htmlspecialchars((string) $verifiedIcon, ENT_QUOTES, 'UTF-8') ?>" alt="Ícone de verificado">
-                                        <span>Verificado</span>
-                                    </span>
+                        <div class="profile-name-block">
+                            <h2 class="profile-name"><?= htmlspecialchars((string) $nomeUsuario, ENT_QUOTES, 'UTF-8') ?></h2>
+                            <div class="profile-meta-list">
+                                <span class="profile-meta-item">@<?= htmlspecialchars((string) $username, ENT_QUOTES, 'UTF-8') ?></span>
+                                <span class="profile-meta-item"><?= htmlspecialchars((string) $perfilLabel, ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php if ($email !== '—'): ?>
+                                    <span class="profile-meta-item"><?= htmlspecialchars((string) $email, ENT_QUOTES, 'UTF-8') ?></span>
                                 <?php endif; ?>
                             </div>
-
-                            <p class="profile-handle">@<?= htmlspecialchars((string) $username, ENT_QUOTES, 'UTF-8') ?></p>
-                            <p class="profile-email"><?= htmlspecialchars((string) $email, ENT_QUOTES, 'UTF-8') ?></p>
-
-                            <?php if ($perfilAtual === 'professor' && !empty($teacherSubjects)): ?>
-                                <div class="subject-icons" aria-label="Matérias do professor">
-                                    <?php foreach ($teacherSubjects as $subject): ?>
-                                        <span class="subject-chip" title="<?= htmlspecialchars((string) $subject['label'], ENT_QUOTES, 'UTF-8') ?>">
-                                            <img src="<?= htmlspecialchars((string) $subject['icon'], ENT_QUOTES, 'UTF-8') ?>" alt="Ícone de <?= htmlspecialchars((string) $subject['label'], ENT_QUOTES, 'UTF-8') ?>">
-                                            <span><?= htmlspecialchars((string) $subject['label'], ENT_QUOTES, 'UTF-8') ?></span>
-                                        </span>
-                                    <?php endforeach; ?>
-                                </div>
-                            <?php elseif ($perfilAtual === 'instituicao'): ?>
-                                <div class="subject-icons" aria-label="Tipo de instituição">
-                                    <span class="subject-chip institution-chip" title="Instituição de ensino">
-                                        <img src="assets/images/icons/school.png" alt="Ícone da instituição">
-                                        <span>Ensino</span>
-                                    </span>
-                                </div>
-                            <?php endif; ?>
-
-                            <div class="pill-row">
-                                <span class="status-pill">Ativo agora</span>
-                                <span class="status-pill green">Nível 12</span>
-                            </div>
                         </div>
+
+                        <?php if ($perfilAtual === 'professor' && !empty($teacherSubjects)): ?>
+                            <div class="subject-icons" aria-label="Matérias do professor">
+                                <?php foreach ($teacherSubjects as $subject): ?>
+                                    <span class="subject-chip" title="<?= htmlspecialchars((string) $subject['label'], ENT_QUOTES, 'UTF-8') ?>">
+                                        <img src="<?= htmlspecialchars((string) $subject['icon'], ENT_QUOTES, 'UTF-8') ?>" alt="Ícone de <?= htmlspecialchars((string) $subject['label'], ENT_QUOTES, 'UTF-8') ?>">
+                                        <span><?= htmlspecialchars((string) $subject['label'], ENT_QUOTES, 'UTF-8') ?></span>
+                                    </span>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php elseif ($perfilAtual === 'instituicao'): ?>
+                            <div class="subject-icons" aria-label="Tipo de instituição">
+                                <span class="subject-chip" title="Instituição de ensino">
+                                    <img src="assets/images/icons/school.png" alt="Ícone da instituição">
+                                    <span>Ensino</span>
+                                </span>
+                            </div>
+                        <?php endif; ?>
                     </div>
 
                     <?php $visibleStats = array_filter($summaryStats, static fn($value): bool => (int) $value > 0); ?>
@@ -212,6 +209,12 @@ $errosPoints = build_line_points($erros, $chartWidth, $chartHeight, $chartPaddin
                                 <span class="legend-item"><span class="legend-dot" style="background:#71308b"></span> Acertos</span>
                                 <span class="legend-item"><span class="legend-dot" style="background:#9edb86"></span> Erros</span>
                             </div>
+                            <?php if ($performanceSummary['total_respostas'] > 0): ?>
+                                <div class="performance-summary" aria-label="Resumo percentual de acertos e erros">
+                                    <span>Total de respostas: <strong><?= (int) $performanceSummary['total_respostas'] ?></strong></span>
+                                    <span>Taxa de acerto: <strong><?= number_format((float) $performanceSummary['percentual_acerto'], 1, ',', '.') ?>%</strong></span>
+                                </div>
+                            <?php endif; ?>
                         </section>
 
                         <aside class="panel side-panel" aria-label="Resumo rápido do perfil">
@@ -264,6 +267,31 @@ $errosPoints = build_line_points($erros, $chartWidth, $chartHeight, $chartPaddin
                             endforeach;
                             ?>
                         </svg>
+                    </section>
+                <?php endif; ?>
+
+                <?php if (!empty($recentRooms)): ?>
+                    <section class="panel rooms-panel" aria-label="Salas recentes do usuário">
+                        <div class="panel-header">
+                            <h3>Salas recentes</h3>
+                            <span>Participações ativas</span>
+                        </div>
+
+                        <div class="recent-rooms-grid">
+                            <?php foreach ($recentRooms as $room): ?>
+                                <?php $roomId = (int) ($room['id'] ?? 0); $roomName = (string) ($room['nome'] ?? 'Sala'); $roomMateria = (string) ($room['materia'] ?? ''); $roomIcon = !empty($room['icone']) ? (string) $room['icone'] : 'assets/images/icons/user-icon.png'; ?>
+                                <a class="recent-room-card" href="sala.php?id=<?= $roomId ?>">
+                                    <div class="recent-room-icon">
+                                        <img src="<?= htmlspecialchars((string) $roomIcon, ENT_QUOTES, 'UTF-8') ?>" alt="Ícone da sala <?= htmlspecialchars((string) $roomName, ENT_QUOTES, 'UTF-8') ?>">
+                                    </div>
+                                    <div class="recent-room-info">
+                                        <strong><?= htmlspecialchars((string) $roomName, ENT_QUOTES, 'UTF-8') ?></strong>
+                                        <?php if ($roomMateria !== ''): ?><span><?= htmlspecialchars((string) $roomMateria, ENT_QUOTES, 'UTF-8') ?></span><?php endif; ?>
+                                        <?php if (!empty($room['prof'])): ?><small><?= htmlspecialchars((string) $room['prof'], ENT_QUOTES, 'UTF-8') ?></small><?php endif; ?>
+                                    </div>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
                     </section>
                 <?php endif; ?>
 
