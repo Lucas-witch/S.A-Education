@@ -3,6 +3,20 @@ require __DIR__ . '/includes/auth.php';
 require __DIR__ . '/includes/data.php';
 require_auth();
 
+function subject_icon_for(string $materia): string {
+    $map = [
+        'matematica' => 'assets/images/icons/matematica-icon.png',
+        'biologia' => 'assets/images/icons/biologia-icon.png',
+        'historia' => 'assets/images/icons/historia.png',
+        'portugues' => 'assets/images/icons/portugues.png',
+        'quimica' => 'assets/images/icons/química.png',
+        'química' => 'assets/images/icons/química.png',
+    ];
+
+    $normalized = strtolower(trim($materia));
+    return $map[$normalized] ?? 'assets/images/icons/user-icon.png';
+}
+
 $perfilAtual = current_user_perfil();
 $nomeUser = $_SESSION['usuario_nome'] ?? $_SESSION['usuario_username'] ?? 'Usuário';
 $perfilLabel = perfil_label($perfilAtual ?: 'estudante');
@@ -44,9 +58,6 @@ $heroLink = [
         <h1>Olá, <?= htmlspecialchars((string) $nomeUser) ?></h1>
         <p><?= htmlspecialchars($perfilLabel) ?> · Vamos aprender algo novo hoje?</p>
     </div>
-    <div class="top-actions">
-        <button class="icon-btn"><img src="assets/images/logo_SAeducation_pocket.png" alt="logo" style="width:20px;height:20px"></button>
-    </div>
 </header>
 
 <section class="hero">
@@ -55,7 +66,7 @@ $heroLink = [
         <p><?= htmlspecialchars($heroText) ?></p>
         <a class="btn light" href="<?= htmlspecialchars($heroLink) ?>"><?= htmlspecialchars($heroButton) ?></a>
     </div>
-    <div class="trophy"><img src="assets/images/winn-icon.png" alt="trofeu"></div>
+    <div class="trophy" aria-label="Conquista">🏆</div>
 </section>
 
 <section class="stats-grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0;">
@@ -82,8 +93,11 @@ $heroLink = [
 </div>
 <div class="grid grid-3">
     <?php foreach ($recentes as $r): ?>
+        <?php $roomIcon = isset($r['icone']) && $r['icone'] !== '' ? (string) $r['icone'] : subject_icon_for((string) ($r['materia'] ?? '')); ?>
         <a class="card room-card" href="sala.php">
-            <div class="room-icon"><?= isset($r['icone']) ? htmlspecialchars((string) $r['icone']) : '📚' ?></div>
+            <div class="room-icon">
+                <img src="<?= htmlspecialchars($roomIcon, ENT_QUOTES, 'UTF-8') ?>" alt="Ícone da matéria" style="width:38px;height:38px;object-fit:contain;display:block;">
+            </div>
             <div>
                 <h3><?= htmlspecialchars((string) ($r['nome'] ?? 'Sala')) ?></h3>
                 <p><?= htmlspecialchars((string) ($r['prof'] ?? 'Professor')) ?> · <?= (int) ($r['alunos'] ?? 0) ?> alunos</p>

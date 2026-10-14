@@ -7,7 +7,7 @@ if (!defined('DEV_MODE')) {
     define('DEV_MODE', false);
 }
 
-const LOGIN_PERFIS_PERMITIDOS = ['estudante', 'professor'];
+const LOGIN_PERFIS_PERMITIDOS = ['estudante', 'professor', 'instituicao'];
 
 function current_user_perfil(): string {
     $perfil = $_SESSION['usuario_perfil'] ?? '';

@@ -31,6 +31,18 @@ $username = $_SESSION['usuario_username'] ?? 'usuario';
 $email = $_SESSION['usuario_email'] ?? '—';
 $perfilLabel = perfil_label($perfilAtual ?: 'estudante');
 
+$subjectCatalog = [
+    ['label' => 'Matemática', 'icon' => 'assets/images/icons/matematica-icon.png'],
+    ['label' => 'Biologia', 'icon' => 'assets/images/icons/biologia-icon.png'],
+    ['label' => 'História', 'icon' => 'assets/images/icons/historia.png'],
+    ['label' => 'Português', 'icon' => 'assets/images/icons/portugues.png'],
+    ['label' => 'Química', 'icon' => 'assets/images/icons/química.png'],
+];
+
+$teacherSubjects = $perfilAtual === 'professor' ? $subjectCatalog : [];
+$verifiedLabel = $perfilAtual === 'professor' ? 'Professor verificado' : ($perfilAtual === 'instituicao' ? 'Instituição verificada' : 'Perfil verificado');
+$verifiedIcon = $perfilAtual === 'professor' ? 'assets/images/icons/teacher-icon.png' : 'assets/images/icons/school.png';
+
 $avatarSource = $_SESSION['usuario_foto'] ?? ($_SESSION['usuario_imagem'] ?? ($_SESSION['perfil_imagem'] ?? 'assets/images/icons/user-icon.png'));
 if ($avatarSource === null || $avatarSource === '') {
     $avatarSource = 'assets/images/icons/user-icon.png';
@@ -113,144 +125,147 @@ $errosPoints = build_line_points($erros, $chartWidth, $chartHeight, $chartPaddin
                 </header>
 
                 <section class="panel hero-panel">
-                    <div class="profile-header">
-                        <div class="profile-identity">
-                            <div class="avatar-shell">
+                    <div class="profile-hero">
+                        <div class="profile-cover">
+                            <div class="profile-avatar-shell">
                                 <img src="<?= htmlspecialchars((string) $avatarSource, ENT_QUOTES, 'UTF-8') ?>" alt="Foto de perfil de <?= htmlspecialchars((string) $nomeUsuario, ENT_QUOTES, 'UTF-8') ?>">
                             </div>
+                        </div>
 
-                            <div class="profile-meta">
-                                <span class="eyebrow">Perfil <?= htmlspecialchars((string) $perfilLabel, ENT_QUOTES, 'UTF-8') ?></span>
+                        <div class="profile-meta">
+                            <div class="name-row">
                                 <h2><?= htmlspecialchars((string) $nomeUsuario, ENT_QUOTES, 'UTF-8') ?></h2>
-                                <p><?= htmlspecialchars((string) $email, ENT_QUOTES, 'UTF-8') ?> · @<?= htmlspecialchars((string) $username, ENT_QUOTES, 'UTF-8') ?></p>
+                                <?php if (in_array($perfilAtual, ['professor', 'instituicao'], true)): ?>
+                                    <span class="verified-badge" aria-label="<?= htmlspecialchars((string) $verifiedLabel, ENT_QUOTES, 'UTF-8') ?>">
+                                        <img src="<?= htmlspecialchars((string) $verifiedIcon, ENT_QUOTES, 'UTF-8') ?>" alt="Ícone de verificado">
+                                        <span>Verificado</span>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
 
-                                <div class="pill-row">
-                                    <span class="status-pill">Ativo agora</span>
-                                    <span class="status-pill green">Nível 12</span>
+                            <p class="profile-handle">@<?= htmlspecialchars((string) $username, ENT_QUOTES, 'UTF-8') ?></p>
+                            <p class="profile-email"><?= htmlspecialchars((string) $email, ENT_QUOTES, 'UTF-8') ?></p>
+
+                            <?php if ($perfilAtual === 'professor' && !empty($teacherSubjects)): ?>
+                                <div class="subject-icons" aria-label="Matérias do professor">
+                                    <?php foreach ($teacherSubjects as $subject): ?>
+                                        <span class="subject-chip" title="<?= htmlspecialchars((string) $subject['label'], ENT_QUOTES, 'UTF-8') ?>">
+                                            <img src="<?= htmlspecialchars((string) $subject['icon'], ENT_QUOTES, 'UTF-8') ?>" alt="Ícone de <?= htmlspecialchars((string) $subject['label'], ENT_QUOTES, 'UTF-8') ?>">
+                                            <span><?= htmlspecialchars((string) $subject['label'], ENT_QUOTES, 'UTF-8') ?></span>
+                                        </span>
+                                    <?php endforeach; ?>
                                 </div>
+                            <?php elseif ($perfilAtual === 'instituicao'): ?>
+                                <div class="subject-icons" aria-label="Tipo de instituição">
+                                    <span class="subject-chip institution-chip" title="Instituição de ensino">
+                                        <img src="assets/images/icons/school.png" alt="Ícone da instituição">
+                                        <span>Ensino</span>
+                                    </span>
+                                </div>
+                            <?php endif; ?>
+
+                            <div class="pill-row">
+                                <span class="status-pill">Ativo agora</span>
+                                <span class="status-pill green">Nível 12</span>
                             </div>
                         </div>
                     </div>
 
-                    <div class="quick-metrics">
-                        <div class="quick-stat">
-                            <strong><?= number_format((float) $summaryStats['pontos'], 0, ',', '.') ?></strong>
-                            <span>Pontos</span>
+                    <?php $visibleStats = array_filter($summaryStats, static fn($value): bool => (int) $value > 0); ?>
+                    <?php if (!empty($visibleStats)): ?>
+                        <div class="quick-metrics">
+                            <?php if ((int) $summaryStats['pontos'] > 0): ?><div class="quick-stat"><strong><?= number_format((float) $summaryStats['pontos'], 0, ',', '.') ?></strong><span>Pontos</span></div><?php endif; ?>
+                            <?php if ((int) $summaryStats['moedas'] > 0): ?><div class="quick-stat"><strong><?= number_format((float) $summaryStats['moedas'], 0, ',', '.') ?></strong><span>Moedas</span></div><?php endif; ?>
+                            <?php if ((int) $summaryStats['seguidores'] > 0): ?><div class="quick-stat"><strong><?= number_format((float) $summaryStats['seguidores'], 0, ',', '.') ?></strong><span>Seguidores</span></div><?php endif; ?>
+                            <?php if ((int) $summaryStats['grupos'] > 0): ?><div class="quick-stat"><strong><?= number_format((float) $summaryStats['grupos'], 0, ',', '.') ?></strong><span>Grupos</span></div><?php endif; ?>
                         </div>
-                        <div class="quick-stat">
-                            <strong><?= number_format((float) $summaryStats['moedas'], 0, ',', '.') ?></strong>
-                            <span>Moedas</span>
-                        </div>
-                        <div class="quick-stat">
-                            <strong><?= number_format((float) $summaryStats['seguidores'], 0, ',', '.') ?></strong>
-                            <span>Seguidores</span>
-                        </div>
-                        <div class="quick-stat">
-                            <strong><?= number_format((float) $summaryStats['grupos'], 0, ',', '.') ?></strong>
-                            <span>Grupos</span>
-                        </div>
-                    </div>
+                    <?php endif; ?>
                 </section>
 
-                <div class="content-grid">
-                    <section class="panel chart-panel" aria-label="Gráfico de desempenho ao longo do tempo">
+                <?php $totalExercicios = array_sum($acertos) + array_sum($erros); ?>
+                <?php if ($totalExercicios > 0): ?>
+                    <div class="content-grid">
+                        <section class="panel chart-panel" aria-label="Gráfico de desempenho ao longo do tempo">
+                            <div class="panel-header">
+                                <h3>Acertos e erros ao longo do tempo</h3>
+                                <span>Últimos 7 meses</span>
+                            </div>
+
+                            <svg viewBox="0 0 <?= $chartWidth ?> <?= $chartHeight ?>" class="chart-svg" role="img" aria-label="Gráfico de acertos e erros ao longo do tempo">
+                                <?php for ($i = 0; $i <= 4; $i++):
+                                    $y = $chartPadding + (($chartHeight - ($chartPadding * 2)) / 4) * $i;
+                                ?>
+                                    <line x1="<?= $chartPadding ?>" x2="<?= $chartWidth - $chartPadding ?>" y1="<?= $y ?>" y2="<?= $y ?>" stroke="rgba(111,104,114,0.18)" stroke-width="1" />
+                                <?php endfor; ?>
+
+                                <?php foreach ($timelineLabels as $index => $label):
+                                    $x = $chartPadding + (($chartWidth - ($chartPadding * 2)) / (count($timelineLabels) - 1)) * $index;
+                                ?>
+                                    <text x="<?= $x ?>" y="<?= $chartHeight - $chartPadding + 18 ?>" font-size="11" text-anchor="middle" fill="#6f6872"><?= htmlspecialchars((string) $label, ENT_QUOTES, 'UTF-8') ?></text>
+                                <?php endforeach; ?>
+
+                                <polyline points="<?= htmlspecialchars((string) $acertosPoints, ENT_QUOTES, 'UTF-8') ?>" fill="none" stroke="#71308b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                                <polyline points="<?= htmlspecialchars((string) $errosPoints, ENT_QUOTES, 'UTF-8') ?>" fill="none" stroke="#9edb86" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+
+                            <div class="legend">
+                                <span class="legend-item"><span class="legend-dot" style="background:#71308b"></span> Acertos</span>
+                                <span class="legend-item"><span class="legend-dot" style="background:#9edb86"></span> Erros</span>
+                            </div>
+                        </section>
+
+                        <aside class="panel side-panel" aria-label="Resumo rápido do perfil">
+                            <div class="panel-header">
+                                <h3>Resumo rápido</h3>
+                            </div>
+
+                            <ul class="summary-list">
+                                <?php if ((int) $summaryStats['pontos'] > 0): ?><li class="summary-item"><span>Pontos</span><strong><?= number_format((float) $summaryStats['pontos'], 0, ',', '.') ?></strong></li><?php endif; ?>
+                                <?php if ((int) $summaryStats['moedas'] > 0): ?><li class="summary-item"><span>Moedas</span><strong><?= number_format((float) $summaryStats['moedas'], 0, ',', '.') ?></strong></li><?php endif; ?>
+                                <?php if ((int) $summaryStats['seguidores'] > 0): ?><li class="summary-item"><span>Seguidores</span><strong><?= number_format((float) $summaryStats['seguidores'], 0, ',', '.') ?></strong></li><?php endif; ?>
+                                <?php if ((int) $summaryStats['grupos'] > 0): ?><li class="summary-item"><span>Grupos</span><strong><?= number_format((float) $summaryStats['grupos'], 0, ',', '.') ?></strong></li><?php endif; ?>
+                            </ul>
+                        </aside>
+                    </div>
+                <?php endif; ?>
+
+                <?php $hasActivityMetrics = array_filter($combinedMetrics, static fn(array $metric): bool => (int) $metric['value'] > 0); ?>
+                <?php if (!empty($hasActivityMetrics)): ?>
+                    <section class="panel metrics-panel" aria-label="Relatório de aulas e leitura">
                         <div class="panel-header">
-                            <h3>Acertos e erros ao longo do tempo</h3>
-                            <span>Últimos 7 meses</span>
+                            <h3>Estudo e atividades</h3>
+                            <span>Horas, leitura e pontos</span>
                         </div>
 
-                        <svg viewBox="0 0 <?= $chartWidth ?> <?= $chartHeight ?>" class="chart-svg" role="img" aria-label="Gráfico de acertos e erros ao longo do tempo">
-                            <?php for ($i = 0; $i <= 4; $i++):
-                                $y = $chartPadding + (($chartHeight - ($chartPadding * 2)) / 4) * $i;
-                            ?>
-                                <line x1="<?= $chartPadding ?>" x2="<?= $chartWidth - $chartPadding ?>" y1="<?= $y ?>" y2="<?= $y ?>" stroke="rgba(111,104,114,0.18)" stroke-width="1" />
-                            <?php endfor; ?>
+                        <div class="metrics-grid">
+                            <?php if ((int) ($combinedMetrics[0]['value']) > 0): ?><div class="mini-stat"><strong><?= (int) ($combinedMetrics[0]['value']) ?>h</strong><span>assistidas em aulas</span></div><?php endif; ?>
+                            <?php if ((int) ($combinedMetrics[1]['value']) > 0): ?><div class="mini-stat"><strong><?= (int) ($combinedMetrics[1]['value']) ?></strong><span>livros da biblioteca</span></div><?php endif; ?>
+                            <?php if ((int) ($combinedMetrics[2]['value']) > 0): ?><div class="mini-stat"><strong><?= number_format((float) $combinedMetrics[2]['value'], 0, ',', '.') ?></strong><span>pontos em quizzes</span></div><?php endif; ?>
+                            <?php if ((int) ($combinedMetrics[3]['value']) > 0): ?><div class="mini-stat"><strong><?= number_format((float) $combinedMetrics[3]['value'], 0, ',', '.') ?></strong><span>pontos em atividades</span></div><?php endif; ?>
+                        </div>
 
-                            <?php foreach ($timelineLabels as $index => $label):
-                                $x = $chartPadding + (($chartWidth - ($chartPadding * 2)) / (count($timelineLabels) - 1)) * $index;
+                        <svg viewBox="0 0 760 180" class="chart-svg" role="img" aria-label="Gráfico com horas assistidas, livros lidos e pontos em atividades">
+                            <?php
+                            $barGap = 55;
+                            $barWidth = 78;
+                            $baseY = 150;
+                            foreach ($combinedMetrics as $index => $metric):
+                                $label = $metric['label'];
+                                $value = (int) $metric['value'];
+                                if ($value <= 0) {
+                                    continue;
+                                }
+                                $x = 50 + ($index * $barGap);
+                                $barHeight = max(18, ($value / max(1, $combinedMax)) * 100);
+                                $y = $baseY - $barHeight;
+                                echo '<rect x="' . $x . '" y="' . $y . '" width="' . $barWidth . '" height="' . $barHeight . '" rx="12" fill="rgba(113,48,139,0.86)" />';
+                                echo '<rect x="' . ($x + 18) . '" y="' . ($y + 12) . '" width="' . ($barWidth - 30) . '" height="' . max(14, $barHeight - 18) . '" rx="10" fill="rgba(155,219,134,0.8)" />';
+                                echo '<text x="' . ($x + ($barWidth / 2)) . '" y="170" font-size="11" text-anchor="middle" fill="#6f6872">' . htmlspecialchars((string) $label, ENT_QUOTES, 'UTF-8') . '</text>';
+                            endforeach;
                             ?>
-                                <text x="<?= $x ?>" y="<?= $chartHeight - $chartPadding + 18 ?>" font-size="11" text-anchor="middle" fill="#6f6872"><?= htmlspecialchars((string) $label, ENT_QUOTES, 'UTF-8') ?></text>
-                            <?php endforeach; ?>
-
-                            <polyline points="<?= htmlspecialchars((string) $acertosPoints, ENT_QUOTES, 'UTF-8') ?>" fill="none" stroke="#71308b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-                            <polyline points="<?= htmlspecialchars((string) $errosPoints, ENT_QUOTES, 'UTF-8') ?>" fill="none" stroke="#9edb86" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
                         </svg>
-
-                        <div class="legend">
-                            <span class="legend-item"><span class="legend-dot" style="background:#71308b"></span> Acertos</span>
-                            <span class="legend-item"><span class="legend-dot" style="background:#9edb86"></span> Erros</span>
-                        </div>
                     </section>
-
-                    <aside class="panel side-panel" aria-label="Resumo rápido do perfil">
-                        <div class="panel-header">
-                            <h3>Resumo rápido</h3>
-                        </div>
-
-                        <ul class="summary-list">
-                            <li class="summary-item">
-                                <span>Pontos</span>
-                                <strong><?= number_format((float) $summaryStats['pontos'], 0, ',', '.') ?></strong>
-                            </li>
-                            <li class="summary-item">
-                                <span>Moedas</span>
-                                <strong><?= number_format((float) $summaryStats['moedas'], 0, ',', '.') ?></strong>
-                            </li>
-                            <li class="summary-item">
-                                <span>Seguidores</span>
-                                <strong><?= number_format((float) $summaryStats['seguidores'], 0, ',', '.') ?></strong>
-                            </li>
-                            <li class="summary-item">
-                                <span>Grupos</span>
-                                <strong><?= number_format((float) $summaryStats['grupos'], 0, ',', '.') ?></strong>
-                            </li>
-                        </ul>
-                    </aside>
-                </div>
-
-                <section class="panel metrics-panel" aria-label="Relatório de aulas e leitura">
-                    <div class="panel-header">
-                        <h3>Estudo e atividades</h3>
-                        <span>Horas, leitura e pontos</span>
-                    </div>
-
-                    <div class="metrics-grid">
-                        <div class="mini-stat">
-                            <strong><?= (int) ($combinedMetrics[0]['value']) ?>h</strong>
-                            <span>assistidas em aulas</span>
-                        </div>
-                        <div class="mini-stat">
-                            <strong><?= (int) ($combinedMetrics[1]['value']) ?></strong>
-                            <span>livros da biblioteca</span>
-                        </div>
-                        <div class="mini-stat">
-                            <strong><?= number_format((float) $combinedMetrics[2]['value'], 0, ',', '.') ?></strong>
-                            <span>pontos em quizzes</span>
-                        </div>
-                        <div class="mini-stat">
-                            <strong><?= number_format((float) $combinedMetrics[3]['value'], 0, ',', '.') ?></strong>
-                            <span>pontos em atividades</span>
-                        </div>
-                    </div>
-
-                    <svg viewBox="0 0 760 180" class="chart-svg" role="img" aria-label="Gráfico com horas assistidas, livros lidos e pontos em atividades">
-                        <?php
-                        $barGap = 55;
-                        $barWidth = 78;
-                        $baseY = 150;
-                        foreach ($combinedMetrics as $index => $metric):
-                            $label = $metric['label'];
-                            $value = (int) $metric['value'];
-                            $x = 50 + ($index * $barGap);
-                            $barHeight = max(18, ($value / max(1, $combinedMax)) * 100);
-                            $y = $baseY - $barHeight;
-                            echo '<rect x="' . $x . '" y="' . $y . '" width="' . $barWidth . '" height="' . $barHeight . '" rx="12" fill="rgba(113,48,139,0.86)" />';
-                            echo '<rect x="' . ($x + 18) . '" y="' . ($y + 12) . '" width="' . ($barWidth - 30) . '" height="' . max(14, $barHeight - 18) . '" rx="10" fill="rgba(155,219,134,0.8)" />';
-                            echo '<text x="' . ($x + ($barWidth / 2)) . '" y="170" font-size="11" text-anchor="middle" fill="#6f6872">' . htmlspecialchars((string) $label, ENT_QUOTES, 'UTF-8') . '</text>';
-                        endforeach;
-                        ?>
-                    </svg>
-                </section>
+                <?php endif; ?>
 
                 <?php if (!empty($writingFeatures)): ?>
                     <section class="panel writing-panel" aria-label="Avaliações de trabalhos e redações">
@@ -273,6 +288,42 @@ $errosPoints = build_line_points($erros, $chartWidth, $chartHeight, $chartPaddin
                             <?php endforeach; ?>
                         </div>
                     </section>
+                <?php endif; ?>
+
+                <?php if ($totalExercicios > 0): ?>
+                    <details class="full-report-toggle">
+                        <summary>Ver gráfico completo</summary>
+                        <section class="advanced-report-panel" aria-label="Resumo completo do desempenho do usuário">
+                            <div class="advanced-summary-grid">
+                                <?php if ((int) ($combinedMetrics[1]['value']) > 0): ?><div class="advanced-summary-item"><span>Livros lidos</span><strong><?= (int) ($combinedMetrics[1]['value']) ?></strong></div><?php endif; ?>
+                                <div class="advanced-summary-item"><span>Acertos</span><strong><?= array_sum($acertos) ?></strong></div>
+                                <div class="advanced-summary-item"><span>Erros</span><strong><?= array_sum($erros) ?></strong></div>
+                                <?php if ((int) ($combinedMetrics[0]['value']) > 0): ?><div class="advanced-summary-item"><span>Horas de aula</span><strong><?= (int) ($combinedMetrics[0]['value']) ?>h</strong></div><?php endif; ?>
+                            </div>
+
+                            <svg viewBox="0 0 760 220" class="chart-svg" role="img" aria-label="Gráfico completo com livros, acertos, erros e horas assistidas">
+                                <?php
+                                $fullChartWidth = 760;
+                                $fullChartHeight = 220;
+                                $fullChartPadding = 28;
+                                $fullLabelCount = count($timelineLabels);
+                                foreach ($timelineLabels as $index => $label):
+                                    $x = $fullChartPadding + (($fullChartWidth - ($fullChartPadding * 2)) / max(1, $fullLabelCount - 1)) * $index;
+                                    echo '<text x="' . $x . '" y="' . ($fullChartHeight - $fullChartPadding + 18) . '" font-size="11" text-anchor="middle" fill="#6f6872">' . htmlspecialchars((string) $label, ENT_QUOTES, 'UTF-8') . '</text>';
+                                endforeach;
+                                ?>
+                                <polyline points="<?= htmlspecialchars((string) $acertosPoints, ENT_QUOTES, 'UTF-8') ?>" fill="none" stroke="#71308b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                                <polyline points="<?= htmlspecialchars((string) $errosPoints, ENT_QUOTES, 'UTF-8') ?>" fill="none" stroke="#9edb86" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+
+                            <div class="legend">
+                                <span class="legend-item"><span class="legend-dot" style="background:#71308b"></span> Acertos</span>
+                                <span class="legend-item"><span class="legend-dot" style="background:#9edb86"></span> Erros</span>
+                                <?php if ((int) ($combinedMetrics[1]['value']) > 0): ?><span class="legend-item"><span class="legend-dot" style="background:#7bb65f"></span> Livros lidos: <?= (int) ($combinedMetrics[1]['value']) ?></span><?php endif; ?>
+                                <?php if ((int) ($combinedMetrics[0]['value']) > 0): ?><span class="legend-item"><span class="legend-dot" style="background:#b083c8"></span> Horas de aula: <?= (int) ($combinedMetrics[0]['value']) ?>h</span><?php endif; ?>
+                            </div>
+                        </section>
+                    </details>
                 <?php endif; ?>
             </div>
         </main>

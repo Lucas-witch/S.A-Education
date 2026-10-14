@@ -68,8 +68,14 @@ $publicacoes = [
         </div>
       </header>
 
+      <div class="feed-search" aria-label="Buscar publicações">
+        <span class="search-icon">⌕</span>
+        <input id="feedSearch" type="search" placeholder="Buscar por #tag, assunto, autor ou tema" aria-label="Buscar publicações">
+      </div>
+
       <?php foreach ($publicacoes as $pub): ?>
-        <article class="feed-card">
+        <?php $feedTags = implode(' ', array_filter(['#' . strtolower(str_replace(' ', '', (string) $pub['tag'])), '#' . strtolower(str_replace(' ', '', (string) $pub['tipo'])), '#gratuito', '#aula'])); ?>
+        <article class="feed-card" data-feed-text="<?= htmlspecialchars((string) ($pub['titulo'] . ' ' . $pub['autor'] . ' ' . $pub['tag'] . ' ' . $pub['tipo'] . ' ' . $pub['texto'] . ' ' . $feedTags), ENT_QUOTES, 'UTF-8') ?>" data-feed-tags="<?= htmlspecialchars((string) $feedTags, ENT_QUOTES, 'UTF-8') ?>">
           <div class="feed-head">
             <div class="feed-author">
               <div class="avatar"><?= strtoupper(substr($pub['autor'],0,1)) ?></div>
@@ -90,6 +96,35 @@ $publicacoes = [
       <?php endforeach; ?>
     </div>
   </main>
+  <script>
+    const feedSearch = document.getElementById('feedSearch');
+    const feedCards = Array.from(document.querySelectorAll('.feed-card'));
+
+    function normalizeSearch(value) {
+      return String(value ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    }
+
+    function extractTags(value) {
+      return (String(value ?? '').match(/#\w+/g) || []).map(tag => normalizeSearch(tag).replace('#', ''));
+    }
+
+    function applyFeedFilter() {
+      const rawTerm = (feedSearch?.value ?? '').trim();
+      const term = normalizeSearch(rawTerm);
+      const tags = extractTags(rawTerm);
+      const cleanTerm = term.replace(/#\w+/g, '').trim();
+
+      feedCards.forEach(card => {
+        const text = normalizeSearch(card.dataset.feedText ?? '');
+        const tagText = normalizeSearch(card.dataset.feedTags ?? '');
+        const hasTagMatch = tags.length === 0 || tags.some(tag => tagText.includes(tag));
+        const matches = !term || text.includes(cleanTerm) || hasTagMatch;
+        card.style.display = matches ? '' : 'none';
+      });
+    }
+
+    feedSearch?.addEventListener('input', applyFeedFilter);
+  </script>
   <?php require 'includes/footer.php'; ?>
 </body>
 </html>

@@ -3,8 +3,8 @@ const ASSETS = [
     '/',
     '/index.html',
     '/manifest.json',
-    '/assets/images/logo_SAeducation_pocket.png',
-    '/assets/images/logo_SAeducation.png',
+    '/assets/images/logo-app.png',
+    '/assets/images/guia-rapida.png',
     '/assets/css/estilo.css',
     '/assets/js/app.js'
 ];
