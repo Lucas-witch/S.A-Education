@@ -6,6 +6,7 @@ session_configure_security();
 session_start();
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/conexao.php';
+require_once __DIR__ . '/includes/room_search.php';
 
 require_auth();
 
@@ -15,32 +16,23 @@ if ($id <= 0) {
     exit;
 }
 
-$stmt = $pdo->prepare('SELECT id, nome, prof, alunos, materia, icone, codigo, privacidade, descricao, criado_em FROM salas WHERE id = :id LIMIT 1');
-$stmt->execute(['id' => $id]);
-$sala = $stmt->fetch();
+$salaResultados = buscar_salas($pdo, (int) $_SESSION['usuario_id'], '', '', '', '', $id);
+$sala = $salaResultados[0] ?? null;
 
 if (!$sala) {
     header('Location: salas.php');
     exit;
 }
 
-if (strtolower((string) ($sala['privacidade'] ?? 'publica')) === 'privada') {
-    $stmt = $pdo->prepare('SELECT 1 FROM salas_usuarios WHERE sala_id = :sala_id AND usuario_id = :usuario_id AND status = "ativo" LIMIT 1');
-    $stmt->execute([
-        'sala_id' => $id,
-        'usuario_id' => (int) ($_SESSION['usuario_id'] ?? 0),
-    ]);
-
-    if (!$stmt->fetch()) {
-        http_response_code(403);
-        header('Location: salas.php?acesso=particular');
-        exit;
-    }
-}
+$stmt = $pdo->prepare('SELECT 1 FROM salas_usuarios WHERE sala_id = :sala_id AND usuario_id = :usuario_id AND status = "ativo" LIMIT 1');
+$stmt->execute([':sala_id' => $id, ':usuario_id' => (int) $_SESSION['usuario_id']]);
+$isMember = (bool) $stmt->fetchColumn();
 
 $roomIcon = !empty($sala['icone']) ? (string) $sala['icone'] : 'assets/images/icons/user-icon.png';
 $privacidade = strtolower((string) ($sala['privacidade'] ?? 'publica')) === 'privada' ? 'Privada' : 'Pública';
 $nomeUsuario = $_SESSION['usuario_nome'] ?? ($_SESSION['usuario_username'] ?? 'Usuário');
+$codigoCriado = $_SESSION['sala_codigo_criado'][$id] ?? null;
+unset($_SESSION['sala_codigo_criado'][$id]);
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -84,10 +76,6 @@ $nomeUsuario = $_SESSION['usuario_nome'] ?? ($_SESSION['usuario_username'] ?? 'U
                     <strong><?= htmlspecialchars((string) $privacidade, ENT_QUOTES, 'UTF-8') ?></strong>
                 </div>
                 <div class="card" style="padding:18px;">
-                    <p style="margin:0 0 8px; color:var(--muted);">Código da sala</p>
-                    <strong><?= htmlspecialchars((string) ($sala['codigo'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></strong>
-                </div>
-                <div class="card" style="padding:18px;">
                     <p style="margin:0 0 8px; color:var(--muted);">Criada em</p>
                     <strong><?= htmlspecialchars((string) ($sala['criado_em'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></strong>
                 </div>
@@ -100,8 +88,22 @@ $nomeUsuario = $_SESSION['usuario_nome'] ?? ($_SESSION['usuario_username'] ?? 'U
                 </p>
             </div>
 
+            <?php if (is_string($codigoCriado) && $codigoCriado !== ''): ?>
+                <div class="alert success" role="status">
+                    Código de convite (mostrado uma única vez): <strong><?= htmlspecialchars($codigoCriado, ENT_QUOTES, 'UTF-8') ?></strong>
+                </div>
+            <?php endif; ?>
+
             <div style="display:flex; gap:12px; flex-wrap:wrap;">
-                <a href="entrar-sala.php" class="btn btn-primary">Entrar na sala</a>
+                <?php if (!$isMember && strtolower((string) ($sala['privacidade'] ?? 'publica')) === 'publica'): ?>
+                    <form action="entrar-sala.php" method="post">
+                        <input type="hidden" name="csrf" value="<?= esc(csrf_token()) ?>">
+                        <input type="hidden" name="sala_id" value="<?= $id ?>">
+                        <button type="submit" class="btn btn-primary">Entrar na sala</button>
+                    </form>
+                <?php elseif ($isMember): ?>
+                    <span class="btn btn-outline" aria-label="Você já participa desta sala">Você já participa</span>
+                <?php endif; ?>
                 <a href="salas.php" class="btn btn-outline">Explorar outras salas</a>
             </div>
         </section>

@@ -18,7 +18,14 @@
   - `[S.A Education][redefinir_senha][PDO]`
 - O login bem-sucedido agora redireciona diretamente para `perfil-dashboard.php`.
 
-## Teste sugerido
+## Evidência da revisão final
+
+- Os PHPs modificados passaram `php -l` com PHP 8.0.30.
+- Os testes automatizados existentes passaram; não foi concluído um ciclo browser com conta descartável.
+- Os logs de depuração não registram senha, token CSRF, e-mail, username ou identificador de usuário; os eventos usam estados booleanos e nomes de evento.
+- O logout limpa a sessão e envia `no-store`; páginas protegidas enviam cabeçalhos privados por `includes/auth.php`.
+
+## Teste manual ainda necessário
 
 1. Substitua a pasta do projeto no `htdocs`.
 2. Acesse `http://localhost/saeducation/login.php`.

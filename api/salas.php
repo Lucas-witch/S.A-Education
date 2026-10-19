@@ -6,23 +6,32 @@ if (session_status() === PHP_SESSION_NONE) {
     session_configure_security();
     session_start();
 }
+send_private_no_store_headers();
+require_once __DIR__ . '/../includes/room_search.php';
 require_once __DIR__ . '/../conexao.php';
 
 try {
-    if (isset($_GET['id'])) {
-        $stmt = $pdo->prepare('SELECT id,nome,prof,alunos,materia,icone,codigo,privacidade,descricao,criado_em FROM salas WHERE id = :id LIMIT 1');
-        $stmt->execute(['id' => (int) $_GET['id']]);
-        $sala = $stmt->fetch();
+    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+        header('Allow: GET');
+        http_response_code(405);
+        echo json_encode(['error' => 'Método não permitido.']);
+        exit;
+    }
 
-        if (!$sala) {
-            http_response_code(404);
-            echo json_encode(['error' => 'Sala não encontrada']);
+    if (isset($_GET['id'])) {
+        $rawId = $_GET['id'];
+        if (!is_string($rawId) || !ctype_digit($rawId) || (int) $rawId <= 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Parâmetro inválido.']);
             exit;
         }
 
-        if (($sala['privacidade'] ?? 'publica') === 'privada' && !isset($_SESSION['usuario_id'])) {
-            http_response_code(403);
-            echo json_encode(['error' => 'Sala privada. Faça login para acessar.']);
+        $salaResultados = buscar_salas($pdo, (int) ($_SESSION['usuario_id'] ?? 0), '', '', '', '', (int) $rawId);
+        $sala = $salaResultados[0] ?? null;
+
+        if (!$sala) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Sala não encontrada.']);
             exit;
         }
 
@@ -30,53 +39,26 @@ try {
         exit;
     }
 
-    $usuarioAtualId = (int) ($_SESSION['usuario_id'] ?? 0);
-    $where = ['1 = 1'];
-    $params = [];
-
-    if ($usuarioAtualId > 0) {
-        $where[] = '(privacidade <> :privada OR EXISTS (SELECT 1 FROM salas_usuarios su WHERE su.sala_id = salas.id AND su.usuario_id = :usuario_id AND su.status = "ativo"))';
-        $params[':privada'] = 'privada';
-        $params[':usuario_id'] = $usuarioAtualId;
-    } else {
-        $where[] = 'privacidade <> :privada';
-        $params[':privada'] = 'privada';
-    }
-
-    $termo = trim((string) ($_GET['q'] ?? ''));
-    if ($termo !== '') {
-        $where[] = '(LOWER(nome) LIKE :q OR LOWER(COALESCE(prof, "")) LIKE :q OR LOWER(COALESCE(materia, "")) LIKE :q OR LOWER(COALESCE(descricao, "")) LIKE :q)';
-        $params[':q'] = '%' . strtolower($termo) . '%';
-    }
-
-    $materia = strtolower(trim((string) ($_GET['materia'] ?? '')));
-    if ($materia !== '') {
-        $where[] = 'LOWER(materia) LIKE :materia';
-        $params[':materia'] = '%' . $materia . '%';
-    }
-
-    $tipo = strtolower(trim((string) ($_GET['tipo'] ?? '')));
-    if ($tipo !== '') {
-        $where[] = '(LOWER(COALESCE(nome, "")) LIKE :tipo OR LOWER(COALESCE(descricao, "")) LIKE :tipo OR LOWER(COALESCE(materia, "")) LIKE :tipo OR LOWER(COALESCE(prof, "")) LIKE :tipo)';
-        $params[':tipo'] = '%' . $tipo . '%';
-    }
-
-    $acesso = strtolower(trim((string) ($_GET['acesso'] ?? '')));
-    if ($acesso === 'gratis') {
-        $where[] = 'privacidade = :acesso';
-        $params[':acesso'] = 'publica';
-    } elseif ($acesso === 'particular') {
-        $where[] = 'privacidade = :acesso';
-        $params[':acesso'] = 'privada';
-    }
-
-    $sql = 'SELECT id,nome,prof,alunos,materia,icone,codigo,privacidade,descricao FROM salas WHERE ' . implode(' AND ', $where) . ' ORDER BY criado_em DESC';
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-    $salas = $stmt->fetchAll();
+    $readFilter = static function (string $name, int $limit): string {
+        $value = $_GET[$name] ?? '';
+        if (!is_string($value) || mb_strlen($value) > $limit) {
+            throw new InvalidArgumentException('Parâmetro inválido.');
+        }
+        return trim($value);
+    };
+    $termo = $readFilter('q', 120);
+    $assunto = $readFilter('assunto', 80);
+    $materia = $readFilter('materia', 80);
+    $acesso = strtolower($readFilter('acesso', 12));
+    $salas = buscar_salas($pdo, (int) ($_SESSION['usuario_id'] ?? 0), $termo, $assunto, $materia, $acesso);
     echo json_encode($salas);
     exit;
+} catch (InvalidArgumentException $e) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Parâmetros de pesquisa inválidos.']);
+    exit;
 } catch (PDOException $e) {
+    error_log('[S.A Education][api/salas] ' . $e->getMessage());
     http_response_code(500);
     echo json_encode(['error' => 'Erro ao buscar salas.']);
     exit;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/includes/helpers.php';
 session_configure_security();
 session_start();
+send_private_no_store_headers();
 
 if (isset($_SESSION['usuario_id'])) {
     header('Location: perfil-dashboard.php');
@@ -63,5 +64,6 @@ unset($_SESSION['erro_redefinir'], $_SESSION['sucesso']);
         <p class="switch"><a href="login.php">Voltar para o login</a></p>
     </section>
 </main>
+<script src="assets/js/app.js"></script>
 </body>
 </html>

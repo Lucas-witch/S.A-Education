@@ -114,13 +114,7 @@ O projeto deve ter um fluxo de recuperação de senha separado, com validação 
 3. Eliminar lógica duplicada espalhada em vários arquivos.
 
 ### Fase 3 — Diagnosticar o login com transparência
-Adicionar no fluxo de autenticação logs temporários para identificar exatamente a causa da rejeição:
-
-- valor de `$_POST`
-- `$_SESSION['csrf_token']`
-- resultado do `password_verify`
-- perfil encontrado no banco
-- resultado da query de usuário
+Adicionar logs temporários somente com estados booleanos e nomes de eventos para distinguir rejeições. Nunca registrar valores de `$_POST`, senha, token CSRF, e-mail, username ou dados de identificação.
 
 Isso ajuda a distinguir entre:
 

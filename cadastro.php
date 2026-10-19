@@ -1,5 +1,8 @@
 <?php
 require_once __DIR__ . '/includes/helpers.php';
+session_configure_security();
+session_start();
+send_private_no_store_headers();
 
 $erro = $_SESSION['erro_cadastro'] ?? '';
 $sucesso = $_SESSION['sucesso'] ?? '';
@@ -74,5 +77,6 @@ unset($_SESSION['erro_cadastro'], $_SESSION['sucesso']);
 		<p class="switch">Representa uma instituição de ensino? <a href="cadastro-instituicao.php">Cadastrar instituição</a></p>
 	</section>
 </main>
+<script src="assets/js/app.js"></script>
 </body>
 </html>

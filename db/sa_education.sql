@@ -32,6 +32,7 @@ CREATE TABLE `biblioteca` (
   `titulo` varchar(180) NOT NULL,
   `autor` varchar(150) DEFAULT NULL,
   `tipo` enum('livro','pdf','apostila','artigo','material') NOT NULL DEFAULT 'livro',
+  `materia` varchar(80) DEFAULT NULL,
   `descricao` text DEFAULT NULL,
   `capa_url` varchar(255) DEFAULT NULL,
   `arquivo_url` varchar(255) DEFAULT NULL,
@@ -127,6 +128,7 @@ CREATE TABLE `publicacoes` (
   `atualizado_em` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+
 -- --------------------------------------------------------
 
 --
@@ -184,14 +186,6 @@ CREATE TABLE `salas_usuarios` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dados de exemplo para associação real de salas do usuário
---
-
-INSERT INTO `salas_usuarios` (`id`, `sala_id`, `usuario_id`, `papel`, `status`, `entrou_em`) VALUES
-(1, 1, 1, 'aluno', 'ativo', '2026-09-18 08:30:00'),
-(2, 3, 1, 'aluno', 'ativo', '2026-09-24 15:15:00'),
-(3, 2, 1, 'aluno', 'ativo', '2026-10-01 09:45:00');
-
 -- --------------------------------------------------------
 
 --
@@ -213,18 +207,6 @@ CREATE TABLE `tentativas_atividade` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dados de exemplo para gráfico e indicadores reais do perfil
---
-
-INSERT INTO `tentativas_atividade` (`id`, `usuario_id`, `tipo`, `atividade_id`, `categoria`, `respostas_corretas`, `respostas_incorretas`, `total_respostas`, `percentual_acerto`, `concluido`, `criado_em`) VALUES
-(1, 1, 'quiz', 101, 'Matemática', 7, 3, 10, 70.00, 1, '2026-04-12 18:05:00'),
-(2, 1, 'exercicio', 201, 'Português', 6, 4, 10, 60.00, 1, '2026-05-08 20:15:00'),
-(3, 1, 'quiz', 102, 'Biologia', 8, 2, 10, 80.00, 1, '2026-06-16 19:35:00'),
-(4, 1, 'exercicio', 202, 'História', 9, 1, 10, 90.00, 1, '2026-07-09 18:50:00'),
-(5, 1, 'quiz', 103, 'Matemática', 10, 0, 10, 100.00, 1, '2026-08-13 17:20:00'),
-(6, 1, 'quiz', 104, 'Geografia', 7, 3, 10, 70.00, 1, '2026-09-21 16:40:00'),
-(7, 1, 'exercicio', 203, 'Química', 11, 4, 15, 73.33, 1, '2026-10-02 18:00:00');
-
 -- --------------------------------------------------------
 
 --
@@ -259,17 +241,6 @@ CREATE TABLE `usuarios` (
   `premium_ativo` tinyint(1) NOT NULL DEFAULT 0,
   `criado_em` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Inserção de dados de exemplo para perfil e progresso do usuário
---
-
-INSERT INTO `usuarios` (`id`, `nome_completo`, `email`, `username`, `senha`, `perfil`, `plano_id`, `perfil_imagem`, `pontos`, `moedas`, `seguidores`, `grupos`, `horas_aulas`, `livros_lidos`, `quizzes_pontos`, `atividades_pontos`, `artigos_pontuacao`, `escritos_pontuacao`, `ensaios_pontuacao`, `redacoes_pontuacao`, `acertos_timeline`, `erros_timeline`, `oauth_provider`, `oauth_id`, `premium_ativo`, `criado_em`) VALUES
-(1, 'Maria Silva', 'maria@saeducation.com', 'maria', '$2y$10$J7a7Hj55Q5w0ZcZb0kK1ieDZa2kQk7I3lE2KqfWv5lNq8U0vN3G7m', 'estudante', 1, 'assets/images/icons/user-icon.png', 2450, 1480, 864, 12, 38, 7, 1450, 930, 820, 760, 910, 790, '[35, 42, 48, 58, 66, 74, 82]', '[52, 48, 42, 36, 29, 23, 18]', NULL, NULL, 0, '2026-09-28 19:16:52');
-
---
--- Índices para tabelas despejadas
---
 
 --
 -- Índices de tabela `salas_usuarios`
@@ -339,7 +310,6 @@ ALTER TABLE `ranking`
 ALTER TABLE `salas`
   ADD PRIMARY KEY (`id`);
 
---
 -- Índices de tabela `usuarios`
 --
 ALTER TABLE `usuarios`
@@ -347,6 +317,41 @@ ALTER TABLE `usuarios`
   ADD UNIQUE KEY `email` (`email`),
   ADD UNIQUE KEY `username` (`username`),
   ADD KEY `fk_usuarios_plano` (`plano_id`);
+
+-- Interações persistentes do Feed; publicacoes/usuarios já têm chaves primárias.
+
+CREATE TABLE `publicacao_curtidas` (
+  `publicacao_id` int(11) NOT NULL,
+  `usuario_id` int(11) NOT NULL,
+  `criado_em` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`publicacao_id`, `usuario_id`),
+  KEY `idx_publicacao_curtidas_usuario` (`usuario_id`),
+  CONSTRAINT `fk_publicacao_curtidas_publicacao` FOREIGN KEY (`publicacao_id`) REFERENCES `publicacoes` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_publicacao_curtidas_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `publicacao_salvamentos` (
+  `publicacao_id` int(11) NOT NULL,
+  `usuario_id` int(11) NOT NULL,
+  `criado_em` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`publicacao_id`, `usuario_id`),
+  KEY `idx_publicacao_salvamentos_usuario` (`usuario_id`),
+  CONSTRAINT `fk_publicacao_salvamentos_publicacao` FOREIGN KEY (`publicacao_id`) REFERENCES `publicacoes` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_publicacao_salvamentos_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `publicacao_comentarios` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `publicacao_id` int(11) NOT NULL,
+  `usuario_id` int(11) NOT NULL,
+  `conteudo` varchar(2000) NOT NULL,
+  `criado_em` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_publicacao_comentarios_feed` (`publicacao_id`, `criado_em`, `id`),
+  KEY `idx_publicacao_comentarios_usuario` (`usuario_id`),
+  CONSTRAINT `fk_publicacao_comentarios_publicacao` FOREIGN KEY (`publicacao_id`) REFERENCES `publicacoes` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_publicacao_comentarios_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- AUTO_INCREMENT para tabelas despejadas
@@ -398,19 +403,19 @@ ALTER TABLE `salas`
 -- AUTO_INCREMENT de tabela `salas_usuarios`
 --
 ALTER TABLE `salas_usuarios`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de tabela `tentativas_atividade`
 --
 ALTER TABLE `tentativas_atividade`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de tabela `usuarios`
 --
 ALTER TABLE `usuarios`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- Restrições para tabelas despejadas

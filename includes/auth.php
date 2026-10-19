@@ -4,12 +4,13 @@ session_configure_security();
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+send_private_no_store_headers();
 
 if (!defined('DEV_MODE')) {
     define('DEV_MODE', false);
 }
 
-const LOGIN_PERFIS_PERMITIDOS = ['estudante', 'professor', 'instituicao'];
+const LOGIN_PERFIS_PERMITIDOS = ['estudante', 'professor'];
 
 function current_user_perfil(): string {
     $perfil = $_SESSION['usuario_perfil'] ?? '';
@@ -36,18 +37,7 @@ function set_authenticated_session(array $usuario): void {
         throw new InvalidArgumentException('Usuário sem identificador válido.');
     }
 
-    $acertosTimeline = $usuario['acertos_timeline'] ?? null;
-    if (is_string($acertosTimeline) && $acertosTimeline !== '') {
-        $decoded = json_decode($acertosTimeline, true);
-        $acertosTimeline = is_array($decoded) ? array_map('intval', $decoded) : null;
-    }
-
-    $errosTimeline = $usuario['erros_timeline'] ?? null;
-    if (is_string($errosTimeline) && $errosTimeline !== '') {
-        $decoded = json_decode($errosTimeline, true);
-        $errosTimeline = is_array($decoded) ? array_map('intval', $decoded) : null;
-    }
-
+    $_SESSION = [];
     session_regenerate_id(true);
 
     $_SESSION['usuario_id'] = (int) $usuario['id'];
@@ -63,20 +53,6 @@ function set_authenticated_session(array $usuario): void {
     $_SESSION['usuario_pode_postar_aulas_ilimitadas'] = (bool) ($usuario['pode_postar_aulas_ilimitadas'] ?? false);
     $_SESSION['perfil_imagem'] = (string) ($usuario['perfil_imagem'] ?? 'assets/images/icons/user-icon.png');
     $_SESSION['usuario_foto'] = $_SESSION['perfil_imagem'];
-    $_SESSION['usuario_pontos'] = (int) ($usuario['pontos'] ?? 0);
-    $_SESSION['usuario_moedas'] = (int) ($usuario['moedas'] ?? 0);
-    $_SESSION['usuario_seguidores'] = (int) ($usuario['seguidores'] ?? 0);
-    $_SESSION['usuario_grupos'] = (int) ($usuario['grupos'] ?? 0);
-    $_SESSION['usuario_horas_aulas'] = (int) ($usuario['horas_aulas'] ?? 0);
-    $_SESSION['usuario_livros_lidos'] = (int) ($usuario['livros_lidos'] ?? 0);
-    $_SESSION['usuario_quizzes_pontos'] = (int) ($usuario['quizzes_pontos'] ?? 0);
-    $_SESSION['usuario_atividades_pontos'] = (int) ($usuario['atividades_pontos'] ?? 0);
-    $_SESSION['usuario_artigos_pontuacao'] = $usuario['artigos_pontuacao'] ?? null;
-    $_SESSION['usuario_escritos_pontuacao'] = $usuario['escritos_pontuacao'] ?? null;
-    $_SESSION['usuario_ensaios_pontuacao'] = $usuario['ensaios_pontuacao'] ?? null;
-    $_SESSION['usuario_redacoes_pontuacao'] = $usuario['redacoes_pontuacao'] ?? null;
-    $_SESSION['usuario_acertos_timeline'] = is_array($acertosTimeline) ? $acertosTimeline : [];
-    $_SESSION['usuario_erros_timeline'] = is_array($errosTimeline) ? $errosTimeline : [];
 }
 
 function is_estudante(): bool {
@@ -102,7 +78,9 @@ function perfil_label(string $perfil): string {
 }
 
 function require_auth(): void {
-    if (!isset($_SESSION['usuario_id'])) {
+    $usuarioId = filter_var($_SESSION['usuario_id'] ?? null, FILTER_VALIDATE_INT);
+    if ($usuarioId === false || $usuarioId <= 0) {
+        $_SESSION = [];
         header('Location: login.php');
         exit;
     }
@@ -114,7 +92,7 @@ function require_perfil(array $perfis): void {
     $perfilAtual = current_user_perfil();
     if ($perfilAtual === '' || !in_array($perfilAtual, $perfis, true)) {
         http_response_code(403);
-        header('Location: dashboard.php');
+        header('Location: perfil-dashboard.php');
         exit;
     }
 }

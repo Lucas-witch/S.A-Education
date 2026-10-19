@@ -1,14 +1,16 @@
 <?php
 require __DIR__ . '/includes/auth.php';
-require __DIR__ . '/includes/data.php';
 require_auth();
 
-$searchValue = trim((string) ($_GET['q'] ?? ''));
-$assuntoValue = trim((string) ($_GET['assunto'] ?? ''));
-$materiaValue = trim((string) ($_GET['materia'] ?? ''));
-$tipoValue = trim((string) ($_GET['tipo'] ?? ''));
-$acessoValue = trim(strtolower((string) ($_GET['acesso'] ?? '')));
-$paginaAtual = max(1, (int) ($_GET['page'] ?? 1));
+$readFilter = static function (string $name, int $limit): string {
+  $value = $_GET[$name] ?? '';
+  return is_string($value) && mb_strlen($value) <= $limit ? trim($value) : '';
+};
+$searchValue = $readFilter('q', 120);
+$assuntoValue = $readFilter('assunto', 80);
+$materiaValue = $readFilter('materia', 80);
+$tipoValue = strtolower($readFilter('tipo', 30));
+$acessoValue = strtolower($readFilter('acesso', 12));
 ?>
 <!doctype html>
 <html lang="pt-BR">
@@ -143,12 +145,17 @@ $paginaAtual = max(1, (int) ($_GET['page'] ?? 1));
       text-transform: uppercase;
       letter-spacing: .04em;
     }
-    .result-badge-free {
-      background: rgba(155,219,134,0.14);
-      color: #336d3b;
-      border: 1px solid rgba(155,219,134,0.24);
+    .result-badge-public {
+      background: rgba(113,48,139,0.06);
+      color: var(--purple);
+      border: 1px solid rgba(113,48,139,0.12);
     }
     .result-badge-premium {
+      background: rgba(113,48,139,0.08);
+      color: var(--purple);
+      border: 1px solid rgba(113,48,139,0.12);
+    }
+    .result-badge-private {
       background: rgba(113,48,139,0.08);
       color: var(--purple);
       border: 1px solid rgba(113,48,139,0.12);
@@ -242,47 +249,32 @@ $paginaAtual = max(1, (int) ($_GET['page'] ?? 1));
         <div class="search-panel">
           <div class="search-input-wrap">
             <span class="search-token" aria-hidden="true">#</span>
-            <input id="searchInput" name="q" type="search" value="<?= htmlspecialchars($searchValue, ENT_QUOTES, 'UTF-8') ?>" placeholder="Buscar por assunto, curso, professor ou palavra-chave" aria-label="Buscar conteúdos">
+            <input id="searchInput" name="q" type="search" value="<?= htmlspecialchars($searchValue, ENT_QUOTES, 'UTF-8') ?>" placeholder="Buscar por assunto, matéria, professor ou palavra-chave" aria-label="Buscar conteúdos">
             <button class="btn btn-primary search-submit" type="submit">Buscar</button>
           </div>
 
           <div class="filter-grid">
-            <select class="filter-field" name="assunto" aria-label="Filtrar por assunto">
-              <option value="">Assunto</option>
-              <option value="curso" <?= $assuntoValue === 'curso' ? 'selected' : '' ?>>Curso</option>
-              <option value="mentoria" <?= $assuntoValue === 'mentoria' ? 'selected' : '' ?>>Mentoria</option>
-              <option value="sala" <?= $assuntoValue === 'sala' ? 'selected' : '' ?>>Sala</option>
-              <option value="aula" <?= $assuntoValue === 'aula' ? 'selected' : '' ?>>Aula</option>
-              <option value="material" <?= $assuntoValue === 'material' ? 'selected' : '' ?>>Material</option>
-            </select>
-
-            <select class="filter-field" name="materia" aria-label="Filtrar por matéria">
-              <option value="">Matéria</option>
-              <option value="matematica" <?= $materiaValue === 'matematica' ? 'selected' : '' ?>>Matemática</option>
-              <option value="biologia" <?= $materiaValue === 'biologia' ? 'selected' : '' ?>>Biologia</option>
-              <option value="historia" <?= $materiaValue === 'historia' ? 'selected' : '' ?>>História</option>
-              <option value="portugues" <?= $materiaValue === 'portugues' ? 'selected' : '' ?>>Português</option>
-              <option value="quimica" <?= $materiaValue === 'quimica' ? 'selected' : '' ?>>Química</option>
-              <option value="fisica" <?= $materiaValue === 'fisica' ? 'selected' : '' ?>>Física</option>
-            </select>
+            <input class="filter-field" name="assunto" maxlength="80" value="<?= htmlspecialchars($assuntoValue, ENT_QUOTES, 'UTF-8') ?>" placeholder="Assunto" aria-label="Filtrar por assunto">
+            <input class="filter-field" name="materia" maxlength="80" value="<?= htmlspecialchars($materiaValue, ENT_QUOTES, 'UTF-8') ?>" placeholder="Matéria" aria-label="Filtrar por matéria">
 
             <select class="filter-field" name="tipo" aria-label="Filtrar por tipo de conteúdo">
               <option value="">Tipo</option>
-              <option value="curso" <?= $tipoValue === 'curso' ? 'selected' : '' ?>>Curso</option>
-              <option value="mentoria" <?= $tipoValue === 'mentoria' ? 'selected' : '' ?>>Mentoria</option>
               <option value="sala" <?= $tipoValue === 'sala' ? 'selected' : '' ?>>Sala</option>
-              <option value="aula" <?= $tipoValue === 'aula' ? 'selected' : '' ?>>Aula</option>
+              <option value="video_aula" <?= $tipoValue === 'video_aula' ? 'selected' : '' ?>>Videoaula</option>
+              <option value="livro" <?= $tipoValue === 'livro' ? 'selected' : '' ?>>Livro</option>
+              <option value="apostila" <?= $tipoValue === 'apostila' ? 'selected' : '' ?>>Apostila</option>
+              <option value="pdf" <?= $tipoValue === 'pdf' ? 'selected' : '' ?>>PDF</option>
               <option value="material" <?= $tipoValue === 'material' ? 'selected' : '' ?>>Material</option>
               <option value="artigo" <?= $tipoValue === 'artigo' ? 'selected' : '' ?>>Artigo</option>
               <option value="redacao" <?= $tipoValue === 'redacao' ? 'selected' : '' ?>>Redação</option>
+              <option value="post" <?= $tipoValue === 'post' ? 'selected' : '' ?>>Publicação</option>
             </select>
 
             <select class="filter-field" name="acesso" aria-label="Filtrar por acesso">
               <option value="">Acesso</option>
-              <option value="publica" <?= $acessoValue === 'publica' ? 'selected' : '' ?>>Público</option>
-              <option value="privada" <?= $acessoValue === 'privada' ? 'selected' : '' ?>>Privado</option>
-              <option value="gratuito" <?= $acessoValue === 'gratuito' ? 'selected' : '' ?>>Gratuito</option>
-              <option value="premium" <?= $acessoValue === 'premium' ? 'selected' : '' ?>>Premium</option>
+              <option value="publica" <?= $acessoValue === 'publica' ? 'selected' : '' ?>>Visibilidade pública</option>
+              <option value="privada" <?= $acessoValue === 'privada' ? 'selected' : '' ?>>Visibilidade privada</option>
+              <option value="premium" <?= $acessoValue === 'premium' ? 'selected' : '' ?>>Requer plano Premium</option>
             </select>
           </div>
 
@@ -369,9 +361,9 @@ $paginaAtual = max(1, (int) ($_GET['page'] ?? 1));
       }
 
       resultsGrid.innerHTML = items.map(item => {
-        const label = item.priceLabel || 'Gratuito';
-        const badgeClass = item.priceLabel && item.priceLabel.toLowerCase().includes('premium') ? 'result-badge-premium' : 'result-badge-free';
-        const accessText = item.accessLabel || 'Acesso público';
+        const label = item.accessLabel || 'Acesso não informado';
+        const badgeClass = item.premiumOnly ? 'result-badge-premium' : (['privada', 'sala', 'instituicao'].includes(item.access) ? 'result-badge-private' : 'result-badge-public');
+        const accessText = item.accessLabel || 'Acesso não informado';
         const url = item.url ? ' href="' + escapeHtml(item.url) + '"' : '';
         const infoLink = item.url ? '<a class="btn btn-outline" style="margin-top: 8px; display: inline-flex;" href="' + escapeHtml(item.url) + '">Visualizar</a>' : '';
 
@@ -383,12 +375,12 @@ $paginaAtual = max(1, (int) ($_GET['page'] ?? 1));
           + '<h3>' + escapeHtml(item.title || 'Resultado') + '</h3>'
           + '<p>' + escapeHtml(item.description || 'Sem descrição disponível.') + '</p>'
           + '<div class="result-details">'
-          + '<div class="result-detail"><strong>Responsável</strong>' + escapeHtml(item.responsible || 'Equipe S.A') + '</div>'
-          + '<div class="result-detail"><strong>Categoria</strong>' + escapeHtml(item.category || 'Geral') + '</div>'
-          + '<div class="result-detail"><strong>Matéria</strong>' + escapeHtml(item.subject || 'Geral') + '</div>'
+          + '<div class="result-detail"><strong>Responsável</strong>' + escapeHtml(item.responsible || 'Não informado') + '</div>'
+          + '<div class="result-detail"><strong>Categoria</strong>' + escapeHtml(item.category || 'Não informada') + '</div>'
+          + '<div class="result-detail"><strong>Matéria</strong>' + escapeHtml(item.subject || 'Não informada') + '</div>'
           + '<div class="result-detail"><strong>Acesso</strong>' + escapeHtml(accessText) + '</div>'
           + '</div>'
-          + '<div class="result-price">' + escapeHtml(item.priceText || 'Gratuito') + '</div>'
+          + (item.priceText ? '<div class="result-price">' + escapeHtml(item.priceText) + '</div>' : '')
           + infoLink
           + '</article>';
       }).join('');
@@ -434,7 +426,7 @@ $paginaAtual = max(1, (int) ($_GET['page'] ?? 1));
           }
 
           const total = Number(data.meta?.total || 0);
-          statusNode.innerHTML = '<div class="search-state-loading">' + total + ' resultado(s) encontrado(s).</div>';
+          statusNode.textContent = total + ' resultado(s) encontrado(s).';
           renderResults(data);
           updateActiveFilters();
         })
@@ -452,9 +444,7 @@ $paginaAtual = max(1, (int) ($_GET['page'] ?? 1));
 
     form.querySelectorAll('select, input').forEach(control => {
       control.addEventListener('change', function () {
-        if (control.tagName === 'SELECT') {
-          loadResults(1);
-        }
+        loadResults(1);
       });
     });
 

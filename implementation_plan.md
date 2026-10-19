@@ -1,12 +1,12 @@
 ## Plano de implementação e entrega — S.A Education
 
-### Status do projeto
+### Status verificado nesta revisão
 
-O projeto já está em uma arquitetura funcional e realista para ambiente web PHP + MySQL. A base mais importante foi concluída: autenticação, perfis, dashboard, salas, filtros de pesquisa, catálogo, ranking, navegação responsiva e PWA com manifest/service worker seguro.
+Não considerar todos os módulos homologados. Os testes automatizados de catálogo/autorização, histórico do dashboard e ações do Feed passaram; o fluxo browser autenticado, o worker ativo e a operação offline não foram concluídos.
 
 ### Arquitetura real
 
-- Backend: PHP 8 + PDO MySQL
+- Backend: PHP 8.0+ + PDO MySQL (PHP CLI local do XAMPP: 8.0.30)
 - Banco: MariaDB/MySQL, esquema carregado por `db/sa_education.sql`
 - Sessões: segurança centralizada em `includes/helpers.php` e `includes/auth.php`
 - Páginas: renderização server-side em PHP
@@ -14,51 +14,36 @@ O projeto já está em uma arquitetura funcional e realista para ambiente web PH
 - Frontend: HTML, CSS e JS com comportamento responsivo
 - PWA: `manifest.json` + `assets/js/sw.js` + registro em `assets/js/app.js`
 
-### Funcionalidades concluídas
+### Classificação
 
-- Cadastro e login locais
-- Validação de perfis
-- Dashboard com dados reais do banco
-- Acesso e listagem de salas
-- Controle de salas privadas e membros ativos
-- Pesquisa e catálogo de conteúdo
-- Perfil com histórico e indicadores dos exercícios
-- Estrutura mobile/desktop com navegação inferior
-- Manifesto PWA e registro do service worker
-
-### Funcionalidades pendentes / externas
-
-- OAuth Google/Microsoft: dependente de credenciais externas
-- Pagamento premium: depende de provedor externo
-- Upload de arquivos e armazenamento em nuvem: ainda não implementado
-- Publicação avançada de conteúdo multimídia: depende de infraestrutura adicional
+- **Implementado e testado:** pesquisa/paginação de catálogo e salas; autorização por vínculo, propriedade e visibilidade; histórico vazio/real; persistência e autorização de ações do Feed; sintaxe PHP e JavaScript.
+- **Implementado parcialmente:** cadastro, autenticação, logout e perfil próprio foram percorridos com duas contas descartáveis; redirecionamento sem sessão, isolamento entre perfis e persistência de uma tentativa real também foram verificados. Salas, biblioteca, ranking e Feed têm código real, mas a base local não tem materiais/publicações e os fluxos completos de autorização não foram todos percorridos no browser.
+- **Implementado parcialmente:** manifesto e worker existem, caminhos estáticos responderam HTTP 200 e os ícones foram ajustados. O navegador criou registro sem worker ativo; instalação/offline não estão validados.
+- **Pendente:** pagamentos/checkout, confirmação de assinatura, upload/armazenamento remoto, Microsoft OAuth e cursos/mentorias.
+- **Bloqueado por configuração externa:** OAuth Google exige client ID/secret e callback configurado; pagamentos e armazenamento dependem de provedores e credenciais. O callback Google atual é placeholder HTTP 501.
 
 ### Requisitos de ambiente
 
-- PHP 8.1+
+- PHP 8.0+ com `pdo_mysql`; PHP CLI do XAMPP local verificado como 8.0.30. `never` é usado como tipo em closures que sempre executam `exit`; PHP 8.1+ é recomendado para semântica nativa desse tipo de retorno.
 - PDO MySQL habilitado
 - MySQL / MariaDB ativo
 - XAMPP, WAMP ou Apache/NGINX com PHP
 - HTTPS recomendado para publicação e PWA
 
-### Processo de instalação
+### Processo de instalação e migrações
 
-1. Copiar o projeto para a pasta do servidor web
-2. Iniciar Apache + MySQL no XAMPP
-3. Criar ou garantir o banco `sa_education`
-4. Importar `db/sa_education.sql` ou deixar `conexao.php` fazer a criação automática
-5. Acessar a aplicação pelo caminho real do projeto
-6. Registrar ou logar em conta existente
+1. Faça backup do banco antes de importar ou alterar schema.
+2. Inicie Apache e MySQL no XAMPP; importe `db/sa_education.sql` pelo phpMyAdmin em banco de desenvolvimento vazio.
+3. Revise os dados demonstrativos do dump antes de qualquer uso em produção.
+4. Em banco existente, inspecione `INFORMATION_SCHEMA`. `db/add_biblioteca_materia.php` e `db/add_feed_interactions.php` verificam os elementos ausentes; `db/apply_profile_migration.php` pode falhar se as FKs já existirem, pois seus `ALTER TABLE ... ADD CONSTRAINT` não são repetíveis.
+5. Nesta revisão, nenhuma migração foi executada: o banco local já tem `biblioteca.materia`, tabelas de interação, 18 FKs e 42 entradas de índice.
+6. Use contas descartáveis para testes e acesse pelo caminho real da pasta em `htdocs`.
 
-### Procedimento de teste
+### Evidência de teste
 
-- Testar cadastro e login
-- Verificar dashboard e histórico do usuário
-- Validar acesso a salas públicas e privadas
-- Verificar filtros de pesquisa e catálogo
-- Confirmar layout desktop/mobile
-- Validar manifest e registration do service worker
-- Simular perda de conexão para verificar comportamento seguro do cache
+- Passaram `tests/catalog_search_test.php`, `tests/dashboard_data_test.php` e `tests/feed_actions_test.php`.
+- Todos os PHPs passaram `php -l` no PHP 8.0.30; `app.js`, `sw.js` e `feed.js` passaram `node --check`.
+- Browser: cadastro/login/logout com contas descartáveis, rota protegida, perfil próprio, isolamento entre contas e tentativa de quiz persistida; pesquisa com/sem resultados, filtros/paginação, tela desktop e navegação mobile. Manifesto/ativos estáticos acessíveis. O registro não chegou a worker ativo; offline não validado.
 
 ### Regras de cache e segurança
 
@@ -70,13 +55,12 @@ O projeto já está em uma arquitetura funcional e realista para ambiente web PH
 
 ### Checklist de entrega
 
-- [x] Banco, schema e dados reais configurados
-- [x] Fluxos principais operando com autenticação
-- [x] Permissões e salas privadas validadas no backend
-- [x] Navegação e design responsivos
-- [x] PWA com manifesto e registro em runtime
-- [x] Documentação alinhada com a estrutura real
-- [ ] OAuth externo e pagamentos ainda dependem de integração profissional
+- [x] Testes automatizados de catálogo, histórico e ações do Feed
+- [x] Sintaxe PHP/JavaScript e consulta read-only ao MariaDB local
+- [x] Revisão visual do login desktop/mobile
+- [ ] Ciclo browser autenticado e autorização entre contas
+- [ ] Worker ativo, instalação e modo offline
+- [ ] OAuth, pagamentos e armazenamento remoto
 
 ### Próximo passo recomendado
 

@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/includes/helpers.php';
 session_configure_security();
 session_start();
+send_private_no_store_headers();
 
 if (isset($_SESSION['usuario_id'])) {
     header('Location: perfil-dashboard.php');
@@ -63,5 +64,6 @@ require_once __DIR__ . '/includes/helpers.php';
         <p class="switch">Ainda não possui uma conta? <a href="cadastro.php">Criar conta</a></p>
     </section>
 </main>
+<script src="assets/js/app.js"></script>
 </body>
 </html>

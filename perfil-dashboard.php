@@ -31,75 +31,25 @@ $username = $_SESSION['usuario_username'] ?? 'usuario';
 $email = $_SESSION['usuario_email'] ?? '—';
 $perfilLabel = perfil_label($perfilAtual ?: 'estudante');
 
-$subjectCatalog = [
-    ['label' => 'Matemática', 'icon' => 'assets/images/icons/matematica-icon.png'],
-    ['label' => 'Biologia', 'icon' => 'assets/images/icons/biologia-icon.png'],
-    ['label' => 'História', 'icon' => 'assets/images/icons/historia.png'],
-    ['label' => 'Português', 'icon' => 'assets/images/icons/portugues.png'],
-    ['label' => 'Química', 'icon' => 'assets/images/icons/química.png'],
-];
-
-$teacherSubjects = $perfilAtual === 'professor' ? $subjectCatalog : [];
-$verifiedLabel = $perfilAtual === 'professor' ? 'Professor verificado' : ($perfilAtual === 'instituicao' ? 'Instituição verificada' : 'Perfil verificado');
-$verifiedIcon = $perfilAtual === 'professor' ? 'assets/images/icons/teacher-icon.png' : 'assets/images/icons/school.png';
-
 $avatarSource = $_SESSION['usuario_foto'] ?? ($_SESSION['usuario_imagem'] ?? ($_SESSION['perfil_imagem'] ?? 'assets/images/icons/user-icon.png'));
 if ($avatarSource === null || $avatarSource === '') {
     $avatarSource = 'assets/images/icons/user-icon.png';
 }
-
-$summaryStats = [
-    'pontos' => max(0, (int) ($_SESSION['usuario_pontos'] ?? 0)),
-    'moedas' => max(0, (int) ($_SESSION['usuario_moedas'] ?? 0)),
-    'seguidores' => max(0, (int) ($_SESSION['usuario_seguidores'] ?? 0)),
-    'grupos' => max(0, (int) ($_SESSION['usuario_grupos'] ?? 0)),
-];
 
 $performanceData = obter_dados_dashboard_usuario($pdo, (int) ($_SESSION['usuario_id'] ?? 0));
 $timelineLabels = $performanceData['labels'] ?? [];
 $acertos = array_values(array_map('intval', $performanceData['acertos'] ?? []));
 $erros = array_values(array_map('intval', $performanceData['erros'] ?? []));
 $recentRooms = $performanceData['salas_recentes'] ?? [];
+$hasActivityHistory = !empty($performanceData['historico_disponivel']);
+$totalTentativas = (int) ($performanceData['total_tentativas'] ?? 0);
+$showPerformanceChart = dashboard_pode_exibir_grafico($performanceData);
 $performanceSummary = [
     'total_acertos' => (int) ($performanceData['total_acertos'] ?? 0),
     'total_erros' => (int) ($performanceData['total_erros'] ?? 0),
     'percentual_acerto' => (float) ($performanceData['percentual_acerto'] ?? 0.0),
     'total_respostas' => (int) ($performanceData['total_respostas'] ?? 0),
 ];
-
-$combinedMetrics = [
-    ['label' => 'Aulas', 'value' => (int) ($_SESSION['usuario_horas_aulas'] ?? 38)],
-    ['label' => 'Livros', 'value' => (int) ($_SESSION['usuario_livros_lidos'] ?? 7)],
-    ['label' => 'Quizzes', 'value' => (int) ($_SESSION['usuario_quizzes_pontos'] ?? 1450)],
-    ['label' => 'Atividades', 'value' => (int) ($_SESSION['usuario_atividades_pontos'] ?? 930)],
-];
-
-$combinedMax = max(array_column($combinedMetrics, 'value'));
-
-$writingFeatures = [
-    [
-        'label' => 'Artigos',
-        'score' => $_SESSION['usuario_artigos_pontuacao'] ?? null,
-        'criteria' => 'Avaliação baseada em clareza, relevância, pesquisa e originalidade, em uma escala de 0 a 1000.',
-    ],
-    [
-        'label' => 'Escritos',
-        'score' => $_SESSION['usuario_escritos_pontuacao'] ?? null,
-        'criteria' => 'Critério de coesão, estrutura, gramática, argumentação e profundidade do conteúdo.',
-    ],
-    [
-        'label' => 'Ensaios',
-        'score' => $_SESSION['usuario_ensaios_pontuacao'] ?? null,
-        'criteria' => 'Nota atribuída pela capacidade de desenvolver ideias, análise e organização do texto.',
-    ],
-    [
-        'label' => 'Redações',
-        'score' => $_SESSION['usuario_redacoes_pontuacao'] ?? null,
-        'criteria' => 'Avaliação de 0 a 1000 com foco em tema, estrutura, linguagem e proposta textual.',
-    ],
-];
-
-$writingFeatures = array_values(array_filter($writingFeatures, static fn (array $feature): bool => $feature['score'] !== null && $feature['score'] !== ''));
 
 $chartWidth = 780;
 $chartHeight = 220;
@@ -149,43 +99,23 @@ $errosPoints = build_line_points($erros, $chartWidth, $chartHeight, $chartPaddin
                             </div>
                         </div>
 
-                        <?php if ($perfilAtual === 'professor' && !empty($teacherSubjects)): ?>
-                            <div class="subject-icons" aria-label="Matérias do professor">
-                                <?php foreach ($teacherSubjects as $subject): ?>
-                                    <span class="subject-chip" title="<?= htmlspecialchars((string) $subject['label'], ENT_QUOTES, 'UTF-8') ?>">
-                                        <img src="<?= htmlspecialchars((string) $subject['icon'], ENT_QUOTES, 'UTF-8') ?>" alt="Ícone de <?= htmlspecialchars((string) $subject['label'], ENT_QUOTES, 'UTF-8') ?>">
-                                        <span><?= htmlspecialchars((string) $subject['label'], ENT_QUOTES, 'UTF-8') ?></span>
-                                    </span>
-                                <?php endforeach; ?>
-                            </div>
-                        <?php elseif ($perfilAtual === 'instituicao'): ?>
-                            <div class="subject-icons" aria-label="Tipo de instituição">
-                                <span class="subject-chip" title="Instituição de ensino">
-                                    <img src="assets/images/icons/school.png" alt="Ícone da instituição">
-                                    <span>Ensino</span>
-                                </span>
-                            </div>
-                        <?php endif; ?>
                     </div>
 
-                    <?php $visibleStats = array_filter($summaryStats, static fn($value): bool => (int) $value > 0); ?>
-                    <?php if (!empty($visibleStats)): ?>
+                    <?php if ($totalTentativas > 0): ?>
                         <div class="quick-metrics">
-                            <?php if ((int) $summaryStats['pontos'] > 0): ?><div class="quick-stat"><strong><?= number_format((float) $summaryStats['pontos'], 0, ',', '.') ?></strong><span>Pontos</span></div><?php endif; ?>
-                            <?php if ((int) $summaryStats['moedas'] > 0): ?><div class="quick-stat"><strong><?= number_format((float) $summaryStats['moedas'], 0, ',', '.') ?></strong><span>Moedas</span></div><?php endif; ?>
-                            <?php if ((int) $summaryStats['seguidores'] > 0): ?><div class="quick-stat"><strong><?= number_format((float) $summaryStats['seguidores'], 0, ',', '.') ?></strong><span>Seguidores</span></div><?php endif; ?>
-                            <?php if ((int) $summaryStats['grupos'] > 0): ?><div class="quick-stat"><strong><?= number_format((float) $summaryStats['grupos'], 0, ',', '.') ?></strong><span>Grupos</span></div><?php endif; ?>
+                            <div class="quick-stat"><strong><?= $totalTentativas ?></strong><span>Tentativas registradas</span></div>
+                            <div class="quick-stat"><strong><?= number_format((float) $performanceSummary['total_respostas'], 0, ',', '.') ?></strong><span>Respostas registradas</span></div>
+                            <div class="quick-stat"><strong><?= number_format((float) $performanceSummary['percentual_acerto'], 1, ',', '.') ?>%</strong><span>Taxa de acerto</span></div>
                         </div>
                     <?php endif; ?>
                 </section>
 
-                <?php $totalExercicios = array_sum($acertos) + array_sum($erros); ?>
-                <?php if ($totalExercicios > 0): ?>
+                <?php if ($showPerformanceChart): ?>
                     <div class="content-grid">
                         <section class="panel chart-panel" aria-label="Gráfico de desempenho ao longo do tempo">
                             <div class="panel-header">
                                 <h3>Acertos e erros ao longo do tempo</h3>
-                                <span>Últimos 7 meses</span>
+                                <span>Até 7 períodos com atividade</span>
                             </div>
 
                             <svg viewBox="0 0 <?= $chartWidth ?> <?= $chartHeight ?>" class="chart-svg" role="img" aria-label="Gráfico de acertos e erros ao longo do tempo">
@@ -223,50 +153,43 @@ $errosPoints = build_line_points($erros, $chartWidth, $chartHeight, $chartPaddin
                             </div>
 
                             <ul class="summary-list">
-                                <?php if ((int) $summaryStats['pontos'] > 0): ?><li class="summary-item"><span>Pontos</span><strong><?= number_format((float) $summaryStats['pontos'], 0, ',', '.') ?></strong></li><?php endif; ?>
-                                <?php if ((int) $summaryStats['moedas'] > 0): ?><li class="summary-item"><span>Moedas</span><strong><?= number_format((float) $summaryStats['moedas'], 0, ',', '.') ?></strong></li><?php endif; ?>
-                                <?php if ((int) $summaryStats['seguidores'] > 0): ?><li class="summary-item"><span>Seguidores</span><strong><?= number_format((float) $summaryStats['seguidores'], 0, ',', '.') ?></strong></li><?php endif; ?>
-                                <?php if ((int) $summaryStats['grupos'] > 0): ?><li class="summary-item"><span>Grupos</span><strong><?= number_format((float) $summaryStats['grupos'], 0, ',', '.') ?></strong></li><?php endif; ?>
+                                <li class="summary-item"><span>Tentativas</span><strong><?= $totalTentativas ?></strong></li>
+                                <li class="summary-item"><span>Acertos</span><strong><?= number_format((float) $performanceSummary['total_acertos'], 0, ',', '.') ?></strong></li>
+                                <li class="summary-item"><span>Erros</span><strong><?= number_format((float) $performanceSummary['total_erros'], 0, ',', '.') ?></strong></li>
+                                <li class="summary-item"><span>Taxa de acerto</span><strong><?= number_format((float) $performanceSummary['percentual_acerto'], 1, ',', '.') ?>%</strong></li>
                             </ul>
                         </aside>
                     </div>
+                <?php elseif (!$hasActivityHistory): ?>
+                    <section class="panel metrics-panel" role="status">
+                        <div class="panel-header"><h3>Histórico indisponível</h3></div>
+                        <p>Não foi possível carregar suas atividades agora. Tente novamente mais tarde.</p>
+                    </section>
+                <?php elseif ($totalTentativas === 0): ?>
+                    <section class="panel metrics-panel" role="status">
+                        <div class="panel-header"><h3>Seu histórico começa aqui</h3></div>
+                        <p>Suas tentativas concluídas aparecerão neste espaço depois que você responder uma questão.</p>
+                        <a class="btn btn-primary" href="quiz.php">Resolver uma questão</a>
+                    </section>
+                <?php else: ?>
+                    <section class="panel metrics-panel" role="status">
+                        <div class="panel-header"><h3>Desempenho registrado</h3></div>
+                        <p>Há tentativas concluídas, mas ainda não existem registros em períodos diferentes para formar um gráfico de evolução.</p>
+                    </section>
                 <?php endif; ?>
 
-                <?php $hasActivityMetrics = array_filter($combinedMetrics, static fn(array $metric): bool => (int) $metric['value'] > 0); ?>
-                <?php if (!empty($hasActivityMetrics)): ?>
+                <?php if ($totalTentativas > 0 || (int) ($performanceData['emprestimos_devolvidos'] ?? 0) > 0): ?>
                     <section class="panel metrics-panel" aria-label="Relatório de aulas e leitura">
                         <div class="panel-header">
-                            <h3>Estudo e atividades</h3>
-                            <span>Horas, leitura e pontos</span>
+                            <h3>Atividades e materiais</h3>
+                            <span>Registros persistidos</span>
                         </div>
 
                         <div class="metrics-grid">
-                            <?php if ((int) ($combinedMetrics[0]['value']) > 0): ?><div class="mini-stat"><strong><?= (int) ($combinedMetrics[0]['value']) ?>h</strong><span>assistidas em aulas</span></div><?php endif; ?>
-                            <?php if ((int) ($combinedMetrics[1]['value']) > 0): ?><div class="mini-stat"><strong><?= (int) ($combinedMetrics[1]['value']) ?></strong><span>livros da biblioteca</span></div><?php endif; ?>
-                            <?php if ((int) ($combinedMetrics[2]['value']) > 0): ?><div class="mini-stat"><strong><?= number_format((float) $combinedMetrics[2]['value'], 0, ',', '.') ?></strong><span>pontos em quizzes</span></div><?php endif; ?>
-                            <?php if ((int) ($combinedMetrics[3]['value']) > 0): ?><div class="mini-stat"><strong><?= number_format((float) $combinedMetrics[3]['value'], 0, ',', '.') ?></strong><span>pontos em atividades</span></div><?php endif; ?>
+                            <?php if ((int) ($performanceData['quizzes_com_tentativa'] ?? 0) > 0): ?><div class="mini-stat"><strong><?= (int) $performanceData['quizzes_com_tentativa'] ?></strong><span>respostas de quiz registradas</span></div><?php endif; ?>
+                            <?php if ((int) ($performanceData['exercicios_com_tentativa'] ?? 0) > 0): ?><div class="mini-stat"><strong><?= (int) $performanceData['exercicios_com_tentativa'] ?></strong><span>respostas de exercício registradas</span></div><?php endif; ?>
+                            <?php if (!empty($performanceData['emprestimos_disponiveis']) && (int) ($performanceData['emprestimos_devolvidos'] ?? 0) > 0): ?><div class="mini-stat"><strong><?= (int) $performanceData['emprestimos_devolvidos'] ?></strong><span>empréstimos devolvidos</span></div><?php endif; ?>
                         </div>
-
-                        <svg viewBox="0 0 760 180" class="chart-svg" role="img" aria-label="Gráfico com horas assistidas, livros lidos e pontos em atividades">
-                            <?php
-                            $barGap = 55;
-                            $barWidth = 78;
-                            $baseY = 150;
-                            foreach ($combinedMetrics as $index => $metric):
-                                $label = $metric['label'];
-                                $value = (int) $metric['value'];
-                                if ($value <= 0) {
-                                    continue;
-                                }
-                                $x = 50 + ($index * $barGap);
-                                $barHeight = max(18, ($value / max(1, $combinedMax)) * 100);
-                                $y = $baseY - $barHeight;
-                                echo '<rect x="' . $x . '" y="' . $y . '" width="' . $barWidth . '" height="' . $barHeight . '" rx="12" fill="rgba(113,48,139,0.86)" />';
-                                echo '<rect x="' . ($x + 18) . '" y="' . ($y + 12) . '" width="' . ($barWidth - 30) . '" height="' . max(14, $barHeight - 18) . '" rx="10" fill="rgba(155,219,134,0.8)" />';
-                                echo '<text x="' . ($x + ($barWidth / 2)) . '" y="170" font-size="11" text-anchor="middle" fill="#6f6872">' . htmlspecialchars((string) $label, ENT_QUOTES, 'UTF-8') . '</text>';
-                            endforeach;
-                            ?>
-                        </svg>
                     </section>
                 <?php endif; ?>
 
@@ -295,64 +218,6 @@ $errosPoints = build_line_points($erros, $chartWidth, $chartHeight, $chartPaddin
                     </section>
                 <?php endif; ?>
 
-                <?php if (!empty($writingFeatures)): ?>
-                    <section class="panel writing-panel" aria-label="Avaliações de trabalhos e redações">
-                        <div class="panel-header">
-                            <h3>Trabalhos e avaliações</h3>
-                            <span>Disponível para o usuário</span>
-                        </div>
-
-                        <div class="writing-grid">
-                            <?php foreach ($writingFeatures as $feature): ?>
-                                <?php
-                                $score = is_numeric($feature['score']) ? (float) $feature['score'] : null;
-                                $scoreDisplay = $score !== null ? number_format($score, 0, ',', '.') : 'N/A';
-                                ?>
-                                <article class="writing-card">
-                                    <h4><?= htmlspecialchars((string) $feature['label'], ENT_QUOTES, 'UTF-8') ?></h4>
-                                    <div class="score-badge">Nota: <?= htmlspecialchars((string) $scoreDisplay, ENT_QUOTES, 'UTF-8') ?></div>
-                                    <p><?= htmlspecialchars((string) $feature['criteria'], ENT_QUOTES, 'UTF-8') ?></p>
-                                </article>
-                            <?php endforeach; ?>
-                        </div>
-                    </section>
-                <?php endif; ?>
-
-                <?php if ($totalExercicios > 0): ?>
-                    <details class="full-report-toggle">
-                        <summary>Ver gráfico completo</summary>
-                        <section class="advanced-report-panel" aria-label="Resumo completo do desempenho do usuário">
-                            <div class="advanced-summary-grid">
-                                <?php if ((int) ($combinedMetrics[1]['value']) > 0): ?><div class="advanced-summary-item"><span>Livros lidos</span><strong><?= (int) ($combinedMetrics[1]['value']) ?></strong></div><?php endif; ?>
-                                <div class="advanced-summary-item"><span>Acertos</span><strong><?= array_sum($acertos) ?></strong></div>
-                                <div class="advanced-summary-item"><span>Erros</span><strong><?= array_sum($erros) ?></strong></div>
-                                <?php if ((int) ($combinedMetrics[0]['value']) > 0): ?><div class="advanced-summary-item"><span>Horas de aula</span><strong><?= (int) ($combinedMetrics[0]['value']) ?>h</strong></div><?php endif; ?>
-                            </div>
-
-                            <svg viewBox="0 0 760 220" class="chart-svg" role="img" aria-label="Gráfico completo com livros, acertos, erros e horas assistidas">
-                                <?php
-                                $fullChartWidth = 760;
-                                $fullChartHeight = 220;
-                                $fullChartPadding = 28;
-                                $fullLabelCount = count($timelineLabels);
-                                foreach ($timelineLabels as $index => $label):
-                                    $x = $fullChartPadding + (($fullChartWidth - ($fullChartPadding * 2)) / max(1, $fullLabelCount - 1)) * $index;
-                                    echo '<text x="' . $x . '" y="' . ($fullChartHeight - $fullChartPadding + 18) . '" font-size="11" text-anchor="middle" fill="#6f6872">' . htmlspecialchars((string) $label, ENT_QUOTES, 'UTF-8') . '</text>';
-                                endforeach;
-                                ?>
-                                <polyline points="<?= htmlspecialchars((string) $acertosPoints, ENT_QUOTES, 'UTF-8') ?>" fill="none" stroke="#71308b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-                                <polyline points="<?= htmlspecialchars((string) $errosPoints, ENT_QUOTES, 'UTF-8') ?>" fill="none" stroke="#9edb86" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-                            </svg>
-
-                            <div class="legend">
-                                <span class="legend-item"><span class="legend-dot" style="background:#71308b"></span> Acertos</span>
-                                <span class="legend-item"><span class="legend-dot" style="background:#9edb86"></span> Erros</span>
-                                <?php if ((int) ($combinedMetrics[1]['value']) > 0): ?><span class="legend-item"><span class="legend-dot" style="background:#7bb65f"></span> Livros lidos: <?= (int) ($combinedMetrics[1]['value']) ?></span><?php endif; ?>
-                                <?php if ((int) ($combinedMetrics[0]['value']) > 0): ?><span class="legend-item"><span class="legend-dot" style="background:#b083c8"></span> Horas de aula: <?= (int) ($combinedMetrics[0]['value']) ?>h</span><?php endif; ?>
-                            </div>
-                        </section>
-                    </details>
-                <?php endif; ?>
             </div>
         </main>
     </div>

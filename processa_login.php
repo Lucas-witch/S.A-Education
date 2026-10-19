@@ -18,9 +18,8 @@ $login = trim((string) ($_POST['login'] ?? ''));
 $senha = (string) ($_POST['senha'] ?? '');
 
 auth_debug_log('login_attempt', [
-    'login' => $login,
+    'login_identifier_present' => $login !== '',
     'csrf_present' => isset($_POST['csrf']) && $_POST['csrf'] !== '',
-    'post_keys' => array_keys($_POST),
 ]);
 
 if ($login === '' || $senha === '') {
@@ -53,9 +52,6 @@ try {
 
     auth_debug_log('login_query_result', [
         'usuario_encontrado' => (bool) $usuario,
-        'perfil' => $usuario['perfil'] ?? null,
-        'email' => $usuario['email'] ?? null,
-        'username' => $usuario['username'] ?? null,
     ]);
 
     if (!$usuario || !isset($usuario['senha'])) {
@@ -68,7 +64,6 @@ try {
 
     auth_debug_log('password_verify', [
         'senha_valida' => $senhaValida,
-        'perfil' => $usuario['perfil'] ?? null,
     ]);
 
     if (!$senhaValida || !is_login_perfil_permitido($usuario['perfil'] ?? '')) {
@@ -87,10 +82,7 @@ try {
         exit;
     }
 
-    auth_debug_log('login_success', [
-        'usuario_id' => $_SESSION['usuario_id'] ?? null,
-        'perfil' => $_SESSION['usuario_perfil'] ?? null,
-    ]);
+    auth_debug_log('login_success');
 
     header('Location: perfil-dashboard.php');
     exit;

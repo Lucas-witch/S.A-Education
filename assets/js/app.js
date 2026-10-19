@@ -19,10 +19,10 @@ const registerServiceWorker = async () => {
     return;
   }
 
-  const workerScope = new URL('.', new URL('./assets/js/sw.js', window.location.href)).pathname;
+  const workerScope = new URL('.', window.location.href).pathname;
 
   try {
-    await navigator.serviceWorker.register(new URL('./assets/js/sw.js', window.location.href), {
+    await navigator.serviceWorker.register(new URL('./sw.js', window.location.href), {
       scope: workerScope
     });
   } catch (error) {
@@ -32,7 +32,6 @@ const registerServiceWorker = async () => {
 
 ensureManifestLink();
 registerServiceWorker();
-window.addEventListener('load', registerServiceWorker);
 
 document.addEventListener('DOMContentLoaded', () => {
   const guideButton = document.querySelector('[data-guide-toggle]');

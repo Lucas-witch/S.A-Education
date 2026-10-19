@@ -34,6 +34,7 @@ if ($ultimaResposta === 'correta') {
       <?php endif; ?>
 
       <form action="processa_quiz.php" method="post" class="question">
+        <input type="hidden" name="csrf" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
         <p style="font-size:12px">Pergunta 1 de 10</p>
         <div class="progress"><span style="width:10%"></span></div>
         <h2>Qual é a capital do Brasil?</h2>

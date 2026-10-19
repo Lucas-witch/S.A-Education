@@ -21,7 +21,7 @@ $estatisticas = [
 
 function registrar_tentativa_atividade(PDO $pdo, int $usuarioId, string $tipo, ?int $atividadeId, string $categoria, int $respostasCorretas, int $respostasIncorretas, int $totalRespostas = 0): void {
     if ($usuarioId <= 0) {
-        return;
+        throw new InvalidArgumentException('Usuário inválido para registrar atividade.');
     }
 
     $tipo = strtolower(trim($tipo));
@@ -29,20 +29,36 @@ function registrar_tentativa_atividade(PDO $pdo, int $usuarioId, string $tipo, ?
         throw new InvalidArgumentException('Tipo de atividade inválido para registro de tentativas.');
     }
 
-    $totalRespostas = max(0, $totalRespostas > 0 ? $totalRespostas : $respostasCorretas + $respostasIncorretas);
-    $acertos = max(0, $respostasCorretas);
-    $erros = max(0, $respostasIncorretas);
-    $percentual = $totalRespostas > 0 ? round(($acertos / $totalRespostas) * 100, 2) : 0.0;
+    if ($atividadeId !== null && $atividadeId <= 0) {
+        throw new InvalidArgumentException('Atividade inválida para registro de tentativas.');
+    }
 
-    $stmt = $pdo->prepare('INSERT INTO tentativas_atividade (usuario_id, tipo, atividade_id, categoria, respostas_corretas, respostas_incorretas, total_respostas, percentual_acerto, concluido, criado_em) VALUES (:usuario_id, :tipo, :atividade_id, :categoria, :respostas_corretas, :respostas_incorretas, :total_respostas, :percentual_acerto, 1, NOW())');
+    if ($respostasCorretas < 0 || $respostasIncorretas < 0 || $totalRespostas < 0) {
+        throw new InvalidArgumentException('As quantidades de respostas não podem ser negativas.');
+    }
+
+    $totalCalculado = $respostasCorretas + $respostasIncorretas;
+    if ($totalCalculado <= 0 || ($totalRespostas > 0 && $totalRespostas !== $totalCalculado)) {
+        throw new InvalidArgumentException('A tentativa precisa conter respostas consistentes.');
+    }
+
+    $categoria = trim($categoria);
+    if (mb_strlen($categoria) > 80) {
+        throw new InvalidArgumentException('Categoria excede o limite permitido.');
+    }
+
+    $percentual = round(($respostasCorretas / $totalCalculado) * 100, 2);
+
+    $createdAtExpression = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite' ? "datetime('now')" : 'NOW()';
+    $stmt = $pdo->prepare('INSERT INTO tentativas_atividade (usuario_id, tipo, atividade_id, categoria, respostas_corretas, respostas_incorretas, total_respostas, percentual_acerto, concluido, criado_em) VALUES (:usuario_id, :tipo, :atividade_id, :categoria, :respostas_corretas, :respostas_incorretas, :total_respostas, :percentual_acerto, 1, ' . $createdAtExpression . ')');
     $stmt->execute([
         ':usuario_id' => $usuarioId,
         ':tipo' => $tipo,
         ':atividade_id' => $atividadeId,
         ':categoria' => $categoria !== '' ? $categoria : 'geral',
-        ':respostas_corretas' => $acertos,
-        ':respostas_incorretas' => $erros,
-        ':total_respostas' => $totalRespostas,
+        ':respostas_corretas' => $respostasCorretas,
+        ':respostas_incorretas' => $respostasIncorretas,
+        ':total_respostas' => $totalCalculado,
         ':percentual_acerto' => $percentual,
     ]);
 }
@@ -57,6 +73,11 @@ function obter_dados_dashboard_usuario(PDO $pdo, int $usuarioId): array {
         'total_tentativas' => 0,
         'total_respostas' => 0,
         'percentual_acerto' => 0.0,
+        'quizzes_com_tentativa' => 0,
+        'exercicios_com_tentativa' => 0,
+        'historico_disponivel' => false,
+        'emprestimos_devolvidos' => 0,
+        'emprestimos_disponiveis' => false,
         'salas_recentes' => [],
     ];
 
@@ -65,19 +86,27 @@ function obter_dados_dashboard_usuario(PDO $pdo, int $usuarioId): array {
     }
 
     try {
-        $stmt = $pdo->prepare('SELECT SUM(respostas_corretas) AS total_acertos, SUM(respostas_incorretas) AS total_erros, SUM(total_respostas) AS total_respostas, COUNT(*) AS total_tentativas FROM tentativas_atividade WHERE usuario_id = :usuario_id AND concluido = 1');
+        $validAttempt = 'usuario_id = :usuario_id AND concluido = 1 AND total_respostas > 0 AND respostas_corretas >= 0 AND respostas_incorretas >= 0 AND total_respostas = respostas_corretas + respostas_incorretas';
+        $stmt = $pdo->prepare('SELECT COALESCE(SUM(respostas_corretas), 0) AS total_acertos, COALESCE(SUM(respostas_incorretas), 0) AS total_erros, COALESCE(SUM(total_respostas), 0) AS total_respostas, COUNT(*) AS total_tentativas, COALESCE(SUM(CASE WHEN tipo = "quiz" THEN 1 ELSE 0 END), 0) AS quizzes_com_tentativa, COALESCE(SUM(CASE WHEN tipo = "exercicio" THEN 1 ELSE 0 END), 0) AS exercicios_com_tentativa FROM tentativas_atividade WHERE ' . $validAttempt);
         $stmt->execute([':usuario_id' => $usuarioId]);
         $resumo = $stmt->fetch();
 
         $dados['total_acertos'] = (int) ($resumo['total_acertos'] ?? 0);
         $dados['total_erros'] = (int) ($resumo['total_erros'] ?? 0);
         $dados['total_tentativas'] = (int) ($resumo['total_tentativas'] ?? 0);
+        $dados['quizzes_com_tentativa'] = (int) ($resumo['quizzes_com_tentativa'] ?? 0);
+        $dados['exercicios_com_tentativa'] = (int) ($resumo['exercicios_com_tentativa'] ?? 0);
         $dados['total_respostas'] = (int) ($resumo['total_respostas'] ?? ($dados['total_acertos'] + $dados['total_erros']));
         $dados['percentual_acerto'] = $dados['total_respostas'] > 0 ? round(($dados['total_acertos'] / $dados['total_respostas']) * 100, 2) : 0.0;
+        $dados['historico_disponivel'] = true;
 
-        $stmt = $pdo->prepare('SELECT DATE_FORMAT(criado_em, "%Y-%m") AS periodo, SUM(respostas_corretas) AS acertos, SUM(respostas_incorretas) AS erros FROM tentativas_atividade WHERE usuario_id = :usuario_id AND concluido = 1 GROUP BY DATE_FORMAT(criado_em, "%Y-%m") ORDER BY periodo ASC LIMIT 7');
+        $periodExpression = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite'
+            ? "strftime('%Y-%m', criado_em)"
+            : "DATE_FORMAT(criado_em, '%Y-%m')";
+        $stmt = $pdo->prepare('SELECT ' . $periodExpression . ' AS periodo, SUM(respostas_corretas) AS acertos, SUM(respostas_incorretas) AS erros FROM tentativas_atividade WHERE ' . $validAttempt . ' GROUP BY ' . $periodExpression . ' ORDER BY periodo DESC LIMIT 7');
         $stmt->execute([':usuario_id' => $usuarioId]);
         $linhas = $stmt->fetchAll();
+        $linhas = array_reverse($linhas);
 
         foreach ($linhas as $linha) {
             $periodo = (string) ($linha['periodo'] ?? '');
@@ -91,6 +120,8 @@ function obter_dados_dashboard_usuario(PDO $pdo, int $usuarioId): array {
             $dados['erros'][] = (int) ($linha['erros'] ?? 0);
         }
     } catch (PDOException $e) {
+        error_log('[S.A Education][dashboard_attempts] ' . $e->getMessage());
+        $dados['historico_disponivel'] = false;
         return $dados;
     }
 
@@ -100,6 +131,15 @@ function obter_dados_dashboard_usuario(PDO $pdo, int $usuarioId): array {
         $dados['salas_recentes'] = $stmt->fetchAll();
     } catch (PDOException $e) {
         $dados['salas_recentes'] = [];
+    }
+
+    try {
+        $stmt = $pdo->prepare('SELECT COUNT(*) FROM emprestimos WHERE usuario_id = :usuario_id AND status = "devolvido"');
+        $stmt->execute([':usuario_id' => $usuarioId]);
+        $dados['emprestimos_devolvidos'] = (int) $stmt->fetchColumn();
+        $dados['emprestimos_disponiveis'] = true;
+    } catch (PDOException $e) {
+        error_log('[S.A Education][dashboard_loans] ' . $e->getMessage());
     }
 
     return $dados;
@@ -158,38 +198,26 @@ if (isset($pdo) && $pdo instanceof PDO) {
     }
 }
 
-if (empty($salas) && empty($recentes) && empty($ranking) && empty($bibliotecaRecente) && empty($publicacoesRecentes)) {
-    $salas = [
-        ['id' => 1, 'nome' => 'Matemática Básica', 'prof' => 'Prof. Lucas', 'alunos' => 25, 'materia' => 'Matemática', 'icone' => 'assets/images/icons/matematica-icon.png', 'privacidade' => 'publica', 'descricao' => 'Sala de revisão e práticas.'],
-        ['id' => 2, 'nome' => 'Química Orgânica', 'prof' => 'Profa. Juliana', 'alunos' => 20, 'materia' => 'Química', 'icone' => 'assets/images/icons/química.png', 'privacidade' => 'publica', 'descricao' => 'Reações e fundamentos.'],
-        ['id' => 3, 'nome' => 'Literatura Brasileira', 'prof' => 'Prof. Felipe', 'alunos' => 15, 'materia' => 'Linguagens', 'icone' => 'assets/images/icons/portugues.png', 'privacidade' => 'publica', 'descricao' => 'Leitura e análise crítica.'],
-    ];
-    $recentes = [
-        ['id' => 1, 'nome' => 'Matemática Avançada', 'prof' => 'Prof. Lucas', 'alunos' => 24, 'icone' => 'assets/images/icons/matematica-icon.png'],
-        ['id' => 2, 'nome' => 'História do Brasil', 'prof' => 'Profa. Marina', 'alunos' => 18, 'icone' => 'assets/images/icons/historia.png'],
-        ['id' => 3, 'nome' => 'Física Moderna', 'prof' => 'Prof. Rafael', 'alunos' => 32, 'icone' => 'assets/images/icons/user-icon.png'],
-    ];
-    $ranking = [
-        ['nome' => 'Ana Clara', 'pontos' => 2450, 'pos' => 1],
-        ['nome' => 'Lucas', 'pontos' => 2100, 'pos' => 2],
-        ['nome' => 'Marina', 'pontos' => 1890, 'pos' => 3],
-    ];
-    $bibliotecaRecente = [
-        ['titulo' => 'Matemática para Concursos', 'autor' => 'Lucas N.', 'tipo' => 'livro', 'disponibilidade' => 'gratis'],
-        ['titulo' => 'Redação em Foco', 'autor' => 'Marina L.', 'tipo' => 'pdf', 'disponibilidade' => 'gratis'],
-        ['titulo' => 'História do Brasil em Fases', 'autor' => 'Pedro A.', 'tipo' => 'apostila', 'disponibilidade' => 'leitura_online'],
-    ];
-    $publicacoesRecentes = [
-        ['titulo' => 'Checklist de revisão', 'tipo' => 'material', 'status' => 'publicado'],
-        ['titulo' => 'Aula de funções', 'tipo' => 'video_aula', 'status' => 'publicado'],
-        ['titulo' => 'Dicas para provas', 'tipo' => 'artigo', 'status' => 'publicado'],
-    ];
-    $estatisticas = [
-        'salas' => count($salas),
-        'biblioteca' => count($bibliotecaRecente),
-        'usuarios' => 0,
-        'instituicoes' => 0,
-        'publicacoes' => count($publicacoesRecentes),
-    ];
+function dashboard_pode_exibir_grafico(array $dados): bool {
+    return !empty($dados['historico_disponivel'])
+        && (int) ($dados['total_tentativas'] ?? 0) > 0
+        && count($dados['labels'] ?? []) >= 2;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

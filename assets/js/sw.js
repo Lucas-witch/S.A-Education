@@ -1,48 +1,44 @@
-const CACHE_NAME = 'sa-education-static-v2';
-const ASSET_CACHE = [
-    './',
-    './index.php',
-    './login.php',
-    './cadastro.php',
-    './manifest.json',
-    './assets/css/estilo.css',
-    './assets/css/login-cadastro.css',
-    './assets/js/app.js',
-    './assets/images/logo-app.png',
-    './assets/images/guia-rapida.png',
-    './assets/images/icons/user-icon.png'
+const CACHE_PREFIX = 'sa-education-static-';
+const CACHE_NAME = `${CACHE_PREFIX}v4`;
+const APP_BASE = new URL('./', self.location.href);
+const STATIC_ASSETS = [
+    'manifest.json',
+    'assets/css/estilo.css',
+    'assets/css/login-cadastro.css',
+    'assets/css/perfil.css',
+    'assets/css/feed.css',
+    'assets/css/catalog.css',
+    'assets/js/app.js',
+    'assets/js/feed.js',
+    'assets/images/logo-app.png',
+    'assets/images/logo-app-192.png',
+    'assets/images/logo-app-512.png',
+    'assets/images/guia-rapida.png',
+    'assets/images/icons/user-icon.png'
 ];
+const STATIC_PATHS = new Set(STATIC_ASSETS.map((asset) => new URL(asset, APP_BASE).pathname));
+const OFFLINE_RESPONSE = () => new Response(
+    '<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sem conexão</title><body><main><h1>Sem conexão</h1><p>Conecte-se à internet para carregar esta página.</p></main></body></html>',
+    { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } }
+);
 
-const isSafeAssetRequest = (url) => {
-    const destination = url.pathname.toLowerCase();
-    return destination.endsWith('.css')
-        || destination.endsWith('.js')
-        || destination.endsWith('.png')
-        || destination.endsWith('.jpg')
-        || destination.endsWith('.jpeg')
-        || destination.endsWith('.svg')
-        || destination.endsWith('.webp')
-        || destination.endsWith('.ico')
-        || destination.endsWith('.json');
+const isSafeAssetRequest = (request, url) => {
+    return request.method === 'GET'
+        && url.origin === self.location.origin
+        && url.search === ''
+        && STATIC_PATHS.has(url.pathname);
 };
 
-const isProtectedHtml = (url) => {
-    const pathname = url.pathname.toLowerCase();
-    return pathname.includes('/perfil-')
-        || pathname.includes('/salas.php')
-        || pathname.includes('/feed.php')
-        || pathname.includes('/ranking.php')
-        || pathname.includes('/biblioteca.php')
-        || pathname.includes('/quiz.php')
-        || pathname.includes('/sala.php')
-        || pathname.includes('/criar-sala.php')
-        || pathname.includes('/entrar-sala.php');
+const isCacheableResponse = (response) => {
+    return response.ok
+        && response.type === 'basic'
+        && !/no-store/i.test(response.headers.get('Cache-Control') || '');
 };
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then((cache) => cache.addAll(ASSET_CACHE))
+            .then((cache) => cache.addAll(STATIC_ASSETS.map((asset) => new URL(asset, APP_BASE).href)))
             .then(() => self.skipWaiting())
     );
 });
@@ -50,7 +46,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((keys) => Promise.all(
-            keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+            keys.filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME).map((key) => caches.delete(key))
         )).then(() => self.clients.claim())
     );
 });
@@ -66,42 +62,32 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    if (url.pathname.includes('/api/')) {
+    if (url.origin !== self.location.origin) {
         return;
     }
 
     if (request.mode === 'navigate') {
         event.respondWith(
             fetch(request)
-                .then((response) => {
-                    if (response && response.status === 200) {
-                        const copy = response.clone();
-                        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)).catch(() => {});
-                    }
-                    return response;
-                })
-                .catch(() => {
-                    if (isProtectedHtml(url)) {
-                        return caches.match('./login.php') || caches.match('./index.php');
-                    }
-                    return caches.match(request) || caches.match('./index.php') || caches.match('./login.php');
-                })
+                .catch(OFFLINE_RESPONSE)
         );
         return;
     }
 
-    if (isSafeAssetRequest(url)) {
+    if (isSafeAssetRequest(request, url)) {
         event.respondWith(
-            caches.match(request).then((cached) => cached || fetch(request).then((response) => {
-                if (response && response.status === 200) {
-                    const clone = response.clone();
-                    caches.open(CACHE_NAME).then((cache) => cache.put(request, clone)).catch(() => {});
+            caches.open(CACHE_NAME).then(async (cache) => {
+                const cached = await cache.match(request);
+                if (cached) {
+                    return cached;
+                }
+
+                const response = await fetch(request);
+                if (isCacheableResponse(response)) {
+                    await cache.put(request, response.clone());
                 }
                 return response;
-            }).catch(() => cached))
+            })
         );
-        return;
     }
-
-    event.respondWith(fetch(request).catch(() => caches.match('./index.php')));
 });

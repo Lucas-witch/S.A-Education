@@ -4,6 +4,15 @@ declare(strict_types=1);
 require_once __DIR__ . '/includes/helpers.php';
 session_configure_security();
 session_start();
+send_private_no_store_headers();
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Allow: POST');
+    http_response_code(405);
+    exit('Método não permitido.');
+}
+
+verify_csrf($_POST['csrf'] ?? null);
 $_SESSION = [];
 
 if (ini_get('session.use_cookies')) {

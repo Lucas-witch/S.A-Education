@@ -23,6 +23,17 @@ function session_configure_security(): void {
     }
 }
 
+function send_private_no_store_headers(): void {
+    if (headers_sent()) {
+        return;
+    }
+
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+    header('Vary: Cookie');
+}
+
 if (!defined('DEV_MODE')) {
     define('DEV_MODE', false);
 }
@@ -38,8 +49,8 @@ function csrf_token(): string {
     return $_SESSION['csrf_token'];
 }
 
-function verify_csrf(string $token): void {
-    if (empty($token) || empty($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $token)) {
+function verify_csrf($token): void {
+    if (!is_string($token) || $token === '' || empty($_SESSION['csrf_token']) || !is_string($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $token)) {
         http_response_code(400);
         exit('Requisição inválida (CSRF).');
     }

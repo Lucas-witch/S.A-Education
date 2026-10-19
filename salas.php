@@ -5,7 +5,8 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 require __DIR__ . '/includes/auth.php';
-require __DIR__ . '/includes/data.php';
+require_once __DIR__ . '/conexao.php';
+require_once __DIR__ . '/includes/room_search.php';
 require_auth();
 
 function subject_icon_for(string $materia): string {
@@ -22,69 +23,48 @@ function subject_icon_for(string $materia): string {
     return $map[$normalized] ?? 'assets/images/icons/user-icon.png';
 }
 
-$pesquisa = trim((string) ($_GET['q'] ?? ''));
-$materiaFiltro = strtolower(trim((string) ($_GET['materia'] ?? '')));
-$tipoFiltro = strtolower(trim((string) ($_GET['tipo'] ?? '')));
-$acessoFiltro = strtolower(trim((string) ($_GET['acesso'] ?? '')));
+$readFilter = static function (string $name, int $maxLength): string {
+  $value = $_GET[$name] ?? '';
+  if (!is_string($value) || mb_strlen($value) > $maxLength) {
+    throw new InvalidArgumentException('Filtro inválido.');
+  }
+  return trim($value);
+};
 
-$where = ['1=1'];
-$params = [];
-
-$usuarioAtualId = (int) ($_SESSION['usuario_id'] ?? 0);
-if ($usuarioAtualId > 0) {
-    $where[] = '(s.privacidade <> :privada OR EXISTS (SELECT 1 FROM salas_usuarios su WHERE su.sala_id = s.id AND su.usuario_id = :usuario_id AND su.status = "ativo"))';
-    $params[':privada'] = 'privada';
-    $params[':usuario_id'] = $usuarioAtualId;
-} else {
-    $where[] = 's.privacidade <> :privada';
-    $params[':privada'] = 'privada';
+$queryError = '';
+$salas = [];
+try {
+  $pesquisa = $readFilter('q', 120);
+  $assuntoFiltro = $readFilter('assunto', 80);
+  $materiaFiltro = $readFilter('materia', 80);
+  $acessoFiltro = strtolower($readFilter('acesso', 12));
+  $salas = buscar_salas($pdo, (int) $_SESSION['usuario_id'], $pesquisa, $assuntoFiltro, $materiaFiltro, $acessoFiltro);
+} catch (InvalidArgumentException $exception) {
+  http_response_code(400);
+  $queryError = 'Os filtros enviados são inválidos. Ajuste os campos e tente novamente.';
+  $pesquisa = $assuntoFiltro = $materiaFiltro = $acessoFiltro = '';
+} catch (PDOException $exception) {
+  error_log('[S.A Education][salas] ' . $exception->getMessage());
+  http_response_code(500);
+  $queryError = 'Não foi possível carregar as salas agora. Tente novamente.';
+  $pesquisa = $assuntoFiltro = $materiaFiltro = $acessoFiltro = '';
 }
-
-if ($pesquisa !== '') {
-    $where[] = '(LOWER(s.nome) LIKE :pesquisa OR LOWER(COALESCE(s.prof, "")) LIKE :pesquisa OR LOWER(COALESCE(s.materia, "")) LIKE :pesquisa OR LOWER(COALESCE(s.descricao, "")) LIKE :pesquisa OR LOWER(COALESCE(s.codigo, "")) LIKE :pesquisa)';
-    $params[':pesquisa'] = '%' . strtolower($pesquisa) . '%';
-}
-
-if ($materiaFiltro !== '') {
-    $where[] = 'LOWER(s.materia) LIKE :materia';
-    $params[':materia'] = '%' . $materiaFiltro . '%';
-}
-
-if ($tipoFiltro !== '') {
-    $where[] = '(LOWER(COALESCE(s.nome, "")) LIKE :tipo OR LOWER(COALESCE(s.descricao, "")) LIKE :tipo OR LOWER(COALESCE(s.materia, "")) LIKE :tipo OR LOWER(COALESCE(s.prof, "")) LIKE :tipo)';
-    $params[':tipo'] = '%' . $tipoFiltro . '%';
-}
-
-if ($acessoFiltro === 'gratis') {
-    $where[] = 's.privacidade = :acesso';
-    $params[':acesso'] = 'publica';
-} elseif ($acessoFiltro === 'particular') {
-    $where[] = 's.privacidade = :acesso';
-    $params[':acesso'] = 'privada';
-}
-
-$sql = 'SELECT s.id, s.nome, s.prof, s.alunos, s.materia, s.icone, s.codigo, s.privacidade, s.descricao FROM salas s WHERE ' . implode(' AND ', $where) . ' ORDER BY s.criado_em DESC';
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$salas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $perfilAtual = current_user_perfil();
 $perfilTitulo = [
     'estudante' => 'Salas para aprender',
     'professor' => 'Minhas salas e acompanhamento',
-    'instituicao' => 'Salas da instituição',
+  'instituicao' => 'Salas disponíveis',
 ][$perfilAtual] ?? 'Salas';
 
 $acaoTexto = [
     'estudante' => 'Entrar em sala',
     'professor' => 'Criar sala',
-    'instituicao' => 'Gerenciar salas',
 ][$perfilAtual] ?? 'Entrar em sala';
 
 $acaoLink = [
     'estudante' => 'entrar-sala.php',
     'professor' => 'criar-sala.php',
-    'instituicao' => 'criar-sala.php',
 ][$perfilAtual] ?? 'entrar-sala.php';
 ?>
 <!doctype html>
@@ -104,36 +84,31 @@ $acaoLink = [
         <h1>Salas</h1>
         <p><?= htmlspecialchars($perfilTitulo) ?></p>
       </div>
-      <a href="<?= htmlspecialchars($acaoLink) ?>" class="btn btn-primary"><?= htmlspecialchars($acaoTexto) ?></a>
+      <?php if (in_array($perfilAtual, ['estudante', 'professor'], true)): ?>
+        <a href="<?= htmlspecialchars($acaoLink, ENT_QUOTES, 'UTF-8') ?>" class="btn btn-primary"><?= htmlspecialchars($acaoTexto, ENT_QUOTES, 'UTF-8') ?></a>
+      <?php endif; ?>
     </header>
 
-    <form method="get" class="search-row" aria-label="Busca de salas">
+    <form id="room-search" method="get" class="search-row" aria-label="Busca de salas">
       <span class="search-icon">⌕</span>
-      <input id="searchInput" name="q" class="search-input" type="search" value="<?= htmlspecialchars((string) $pesquisa, ENT_QUOTES, 'UTF-8') ?>" placeholder="Buscar por #tag, assunto, matéria ou curso..." aria-label="Buscar salas">
+      <input id="searchInput" name="q" class="search-input" type="search" value="<?= htmlspecialchars((string) $pesquisa, ENT_QUOTES, 'UTF-8') ?>" placeholder="Nome, professor ou palavra-chave" aria-label="Buscar salas">
       <div class="search-filters">
-        <select id="filterSubject" name="materia" class="search-select" aria-label="Filtrar por matéria">
-          <option value="">Matéria</option>
-          <option value="matematica" <?= $materiaFiltro === 'matematica' ? 'selected' : '' ?>>Matemática</option>
-          <option value="biologia" <?= $materiaFiltro === 'biologia' ? 'selected' : '' ?>>Biologia</option>
-          <option value="historia" <?= $materiaFiltro === 'historia' ? 'selected' : '' ?>>História</option>
-          <option value="portugues" <?= $materiaFiltro === 'portugues' ? 'selected' : '' ?>>Português</option>
-          <option value="quimica" <?= $materiaFiltro === 'quimica' ? 'selected' : '' ?>>Química</option>
-        </select>
-        <select id="filterType" name="tipo" class="search-select" aria-label="Filtrar por tipo de oferta">
-          <option value="">Tipo</option>
-          <option value="curso" <?= $tipoFiltro === 'curso' ? 'selected' : '' ?>>Curso</option>
-          <option value="mentoria" <?= $tipoFiltro === 'mentoria' ? 'selected' : '' ?>>Mentoria</option>
-          <option value="aula" <?= $tipoFiltro === 'aula' ? 'selected' : '' ?>>Aula</option>
-        </select>
+        <input name="assunto" class="search-select" type="search" maxlength="80" value="<?= htmlspecialchars((string) $assuntoFiltro, ENT_QUOTES, 'UTF-8') ?>" placeholder="Assunto" aria-label="Filtrar por assunto">
+        <input name="materia" class="search-select" type="search" maxlength="80" value="<?= htmlspecialchars((string) $materiaFiltro, ENT_QUOTES, 'UTF-8') ?>" placeholder="Matéria" aria-label="Filtrar por matéria">
         <select id="filterAccess" name="acesso" class="search-select" aria-label="Filtrar por tipo de acesso">
           <option value="">Acesso</option>
-          <option value="gratis" <?= $acessoFiltro === 'gratis' ? 'selected' : '' ?>>Gratuito</option>
-          <option value="particular" <?= $acessoFiltro === 'particular' ? 'selected' : '' ?>>Particular</option>
+          <option value="publica" <?= $acessoFiltro === 'publica' ? 'selected' : '' ?>>Pública</option>
+          <option value="privada" <?= $acessoFiltro === 'privada' ? 'selected' : '' ?>>Privada</option>
         </select>
+        <button type="submit" class="btn btn-primary" data-search-submit>Buscar</button>
       </div>
     </form>
 
-    <?php if (empty($salas)): ?>
+    <?php if ($queryError !== ''): ?>
+      <div class="card" role="alert" style="margin-top:20px;padding:26px;text-align:center;color:var(--muted);">
+        <?= htmlspecialchars($queryError, ENT_QUOTES, 'UTF-8') ?>
+      </div>
+    <?php elseif (empty($salas)): ?>
       <div class="card" style="margin-top:20px;padding:26px;text-align:center;color:var(--muted);">
         Nenhuma sala encontrada no momento.
       </div>
@@ -142,24 +117,15 @@ $acaoLink = [
       <div class="grid grid-3" id="roomsGrid">
         <?php foreach ($salas as $s): ?>
           <?php $roomId = (int) ($s['id'] ?? 0); $roomIcon = !empty($s['icone']) ? (string) $s['icone'] : subject_icon_for((string) ($s['materia'] ?? '')); ?>
-          <?php $roomAccess = strtolower((string) ($s['privacidade'] ?? 'publica')) === 'privada' ? 'particular' : 'gratis'; ?>
-          <?php $roomType = strtolower((string) ($s['tipo'] ?? ($s['categoria'] ?? ($s['formato'] ?? 'curso')))); ?>
-          <?php $roomTags = implode(' ', array_filter([
-              '#' . strtolower(str_replace(' ', '', (string) ($s['materia'] ?? ''))),
-              '#' . strtolower(str_replace(' ', '', (string) ($s['nome'] ?? ''))),
-              '#' . strtolower(str_replace(' ', '', (string) ($s['prof'] ?? ''))),
-              '#' . strtolower(str_replace(' ', '', (string) ($s['tipo'] ?? 'curso'))),
-              '#' . $roomAccess,
-              '#' . $roomType,
-          ])); ?>
-          <a class="card room-card" href="sala.php?id=<?= $roomId ?>" data-room-name="<?= esc((string) ($s['nome'] ?? '')) ?>" data-room-materia="<?= esc(strtolower((string) ($s['materia'] ?? ''))) ?>" data-room-access="<?= htmlspecialchars($roomAccess, ENT_QUOTES, 'UTF-8') ?>" data-room-type="<?= htmlspecialchars($roomType, ENT_QUOTES, 'UTF-8') ?>" data-room-keywords="<?= esc((string) ($s['descricao'] ?? '') . ' ' . ($s['materia'] ?? '') . ' ' . ($s['prof'] ?? '') . ' ' . $roomTags) ?>" data-room-tags="<?= htmlspecialchars($roomTags, ENT_QUOTES, 'UTF-8') ?>">
+          <?php $roomAccess = strtolower((string) ($s['privacidade'] ?? 'publica')) === 'privada' ? 'privada' : 'publica'; ?>
+          <a class="card room-card" href="sala.php?id=<?= $roomId ?>">
             <div class="room-icon">
               <img src="<?= esc((string) $roomIcon) ?>" alt="Ícone da matéria" style="width:38px;height:38px;object-fit:contain;display:block">
             </div>
             <div>
               <h3><?= esc((string) ($s['nome'] ?? 'Sala')) ?></h3>
-              <p><?= esc((string) ($s['prof'] ?? 'Professor')) ?> · <?= intval($s['alunos'] ?? 0) ?> alunos</p>
-              <small class="room-badge room-badge-<?= $roomAccess === 'particular' ? 'private' : 'free' ?>"><?= $roomAccess === 'particular' ? 'Particular' : 'Gratuito' ?></small>
+              <p><?= esc((string) ($s['prof'] ?? 'Responsável não informado')) ?> · <?= intval($s['alunos'] ?? 0) ?> participantes</p>
+              <small class="room-badge room-badge-<?= $roomAccess === 'privada' ? 'private' : 'public' ?>"><?= $roomAccess === 'privada' ? 'Privada' : 'Pública' ?></small>
             </div>
             <span class="arrow">›</span>
           </a>
@@ -168,6 +134,15 @@ $acaoLink = [
     <?php endif; ?>
   </main>
 </div>
+<script>
+  document.getElementById('room-search')?.addEventListener('submit', () => {
+    const button = document.querySelector('[data-search-submit]');
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Buscando...';
+    }
+  });
+</script>
 <?php require __DIR__ . '/includes/footer.php'; ?>
 </body>
 </html>

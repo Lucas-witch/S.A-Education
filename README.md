@@ -6,27 +6,18 @@ Plataforma web de educação com autenticação, salas de estudo, catálogo, ran
 
 A aplicação foi estruturada como um projeto PHP procedural com MySQL/MariaDB, usando sessões, PDO prepared statements e renderização server-side para cada página. O sistema usa o banco de dados como fonte de verdade para perfis, salas, exercícios, rankings e dados do dashboard.
 
-### Funcionalidades implementadas
+### Estado funcional
 
-- Autenticação de usuários com login e senha
-- Cadastro de estudantes, professores e instituições
-- Dashboard de perfil com dados reais do banco
-- Lista de salas, filtros e acesso controlado para salas privadas
-- Feed e pesquisa com filtros por categoria e visibilidade
-- Biblioteca e ranking
-- Navegação lateral e inferior responsiva
-- PWA com manifest e service worker seguro
-
-### Funcionalidades pendentes ou externas
-
-- Login OAuth com Google/Microsoft ainda não configurado
-- Provedor de pagamentos / assinatura premium ainda não implementado
-- Armazenamento de arquivos em nuvem ainda não configurado
-- Integrações externas dependem de credenciais e ambiente de produção
+| Estado | Recursos e evidência |
+| --- | --- |
+| Implementado e testado | Pesquisa/paginação de salas e catálogo, autorização de conteúdo, histórico vazio e real do dashboard, ações persistidas e autorização do Feed. Testes automatizados executados com SQLite em memória. |
+| Implementado parcialmente | Cadastro, login/logout e perfil próprio foram percorridos com duas contas descartáveis; também foram verificados redirecionamento sem sessão, isolamento do perfil e uma tentativa de quiz persistida. Salas, biblioteca, ranking e feed existem, mas não há conteúdo local para validar todos os estados com dados. O código do service worker existe, porém o navegador local não apresentou worker ativo. |
+| Pendente | Checkout/pagamentos, upload de arquivos, cursos/mentorias e fluxo Microsoft OAuth. |
+| Bloqueado por configuração externa | OAuth Google depende de app/credenciais/callback; pagamentos e armazenamento remoto dependem de provedores e credenciais. Placeholders não contam como integração concluída. |
 
 ## Requisitos
 
-- PHP 8.1+ com extensão PDO MySQL habilitada
+- PHP 8.0+ com `pdo_mysql`; PHP CLI do XAMPP verificado nesta revisão: 8.0.30. O dump informa a versão usada na exportação pelo phpMyAdmin, não a versão mínima do projeto. O plano anterior exigia 8.1+ sem dependência exclusiva comprovada. `never` aparece em closures que sempre encerram com `exit`; PHP 8.1+ é recomendado para tipo de retorno nativo.
 - MariaDB / MySQL 10.4+ ou equivalente
 - Servidor web Apache com XAMPP, WAMP ou similar
 - Navegador moderno com suporte a PWA e service workers
@@ -52,6 +43,14 @@ O arquivo `conexao.php` tenta criar o banco automaticamente se ele não existir 
 - `DB_PASS`
 - `DB_PORT`
 
+Em bancos que já foram inicializados com o histórico demonstrativo do perfil, faça backup e execute `php db/remove_profile_demo_data.php`. O script remove somente tentativas e participações que correspondam exatamente aos fixtures conhecidos; não apaga usuários, salas nem outros registros.
+
+### Catálogo e pesquisa
+
+`salas` fornece `nome`, `prof`, `materia`, `descricao` e `privacidade`; participantes são contados por vínculos ativos em `salas_usuarios`. `publicacoes` fornece tipo, categoria, conteúdo, status, visibilidade e `is_premium_only`, mas não possui preço nem confirmação de pagamento. `biblioteca` fornece título, autor, tipo, descrição, URLs, disponibilidade e status. Para persistir matéria dos materiais, aplique `php db/add_biblioteca_materia.php`; é uma coluna nullable e não preenche dados antigos. Cursos e mentorias não possuem tabela ou tipo de publicação e não são simulados.
+
+O Feed usa `publicacoes` para posts e requer `publicacao_curtidas`, `publicacao_salvamentos` e `publicacao_comentarios`; em bancos existentes, aplique `php db/add_feed_interactions.php`. As tabelas novas usam chaves únicas e FKs em cascata, sem reescrever publicações existentes.
+
 ## Estrutura principal
 
 - `index.php` — página inicial autenticada
@@ -63,35 +62,45 @@ O arquivo `conexao.php` tenta criar o banco automaticamente se ele não existir 
 - `includes/` — autenticação, helpers, navegação, dados
 - `db/sa_education.sql` — schema e dados iniciais
 - `manifest.json` — manifesto do PWA
+- `sw.js` — entrada do service worker no escopo raiz da aplicação
 - `assets/js/sw.js` — service worker com cache controlado
 
-## PWA e instalação
+## PWA
 
-O projeto inclui manifesto e serviço de cache compatível com ambiente local e subdiretórios. O arquivo `manifest.json` aponta para `./index.php`, usa escopo local e referencia o ícone real disponível em `assets/images/logo-app.png`.
+O manifesto usa `./index.php`, escopo relativo e ícones PNG 192x192/512x512. `assets/js/app.js` registra o `sw.js` da raiz da aplicação; a implementação em `assets/js/sw.js` limita o cache a caminhos estáticos explícitos, não intercepta APIs nem documentos de navegação e prevê fallback offline genérico. O browser leu o manifesto e os ativos responderam HTTP 200, mas não apresentou worker ativo. Portanto, instalação e uso offline não estão aprovados. O evento `activate` remove caches antigos com o prefixo da aplicação; logout não limpa caches porque documentos e conteúdo pessoal não devem ser armazenados.
 
-O navegador exige que o Service Worker esteja em um escopo que não exceda o diretório do script. Como o worker está em `assets/js/sw.js`, o registro válido fica restrito ao escopo do próprio diretório de assets. Isso evita prometer uma instalação completa de app em um escopo maior do que o navegador permite. A estratégia de cache evita guardar conteúdo privado ou respostas autenticadas do usuário:
+## Testes desta revisão
 
-- cache de ativos estáticos: CSS, JS, imagens, manifest
-- HTML de navegação: utiliza rede e fallback seguro sem armazenar páginas personalizadas
-- API e dados protegidos: não entram em cache
-- páginas autenticadas: não são armazenadas em cache para evitar vazamento de identidade e dados do usuário
+- PHP 8.0.30: sintaxe de todos os PHPs e três testes automatizados aprovados.
+- JavaScript: `node --check` em `app.js`, `sw.js` e `feed.js` aprovado.
+- MariaDB local 10.4.32: leitura de metadados confirmou 13 tabelas, 18 chaves estrangeiras e 42 entradas de índice; `biblioteca.materia` e as tabelas de interação do Feed já existem. Nenhuma migração foi executada.
+- Navegador: cadastro, login, logout, acesso autenticado/não autenticado, perfil próprio e histórico vazio/com tentativa foram testados com contas descartáveis; registros temporários foram removidos. Pesquisa com/sem resultado, paginação, filtro de salas públicas/privadas, cabeçalhos `no-store`/`Vary: Cookie` e navegação desktop/mobile foram verificados. Perfil público de terceiros não existe no código. O worker não ficou ativo e o teste offline não foi concluído.
 
-## Testes recomendados
+### Reproduzir no XAMPP e phpMyAdmin
 
-1. Login com usuário válido e inválido
-2. Cadastro com duplicidade de e-mail/usuário
-3. Visualização de dashboard e dados do perfil
-4. Acesso a sala pública versus privada
-5. Uso de filtros de pesquisa e catálogo
-6. Navegação mobile com bottom nav
-7. Verificação do PWA em navegador moderno
-8. Teste de rede indisponível para confirmar que não há exposição de dados privados em cache
+No PowerShell, na pasta do projeto:
+
+```powershell
+$php = 'C:\xampp\php\php.exe'
+& $php -v
+Get-ChildItem -Recurse -Filter *.php | ForEach-Object { & $php -l $_.FullName }
+& $php tests\catalog_search_test.php
+& $php tests\dashboard_data_test.php
+& $php tests\feed_actions_test.php
+node --check assets\js\app.js
+node --check assets\js\sw.js
+node --check assets\js\feed.js
+```
+
+No phpMyAdmin, selecione `sa_education`, exporte backup antes de alterações e consulte `INFORMATION_SCHEMA` para conferir tabelas, índices e chaves estrangeiras. Não reaplique migrações sem comparar o schema: o banco usado nesta revisão já tem a coluna de matéria e as três tabelas do Feed. Para testes no browser, inicie Apache/MySQL, crie uma conta descartável pela interface e remova-a depois; não use dados reais em logs ou capturas compartilhadas.
 
 ## Limitações conhecidas
 
-- A integração OAuth com Google/Microsoft está documentada como pendente
-- O fluxo de pagamento premium ainda não está implementado
-- O projeto não depende de “dados mockados” para dados críticos; quando a base estiver indisponível, as páginas devem responder conforme o comportamento do backend
+- O dump contém dados demonstrativos e não deve ser importado em produção sem revisão.
+- OAuth Google retorna HTTP 501; Microsoft não tem fluxo implementado.
+- Tabelas e rótulos Premium não implementam checkout ou confirmação de pagamento.
+- URLs de arquivos existem no modelo, mas não há fluxo de upload/armazenamento remoto.
+- `db/apply_profile_migration.php` não protege a adição repetida de FKs; inspecione o schema antes de executá-lo em banco existente.
 
 ## Dicas de publicação
 

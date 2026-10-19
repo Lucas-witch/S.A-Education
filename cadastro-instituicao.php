@@ -1,5 +1,8 @@
 <?php
 require_once __DIR__ . '/includes/helpers.php';
+session_configure_security();
+session_start();
+send_private_no_store_headers();
 
 $dados = $_SESSION['dados_instituicao'] ?? [];
 $erro = $_SESSION['erro_instituicao'] ?? '';
@@ -93,5 +96,6 @@ unset($_SESSION['dados_instituicao'], $_SESSION['erro_instituicao']);
         <p class="switch">Já possui acesso? <a href="login.php">Entrar</a></p>
     </section>
 </main>
+<script src="assets/js/app.js"></script>
 </body>
 </html>
