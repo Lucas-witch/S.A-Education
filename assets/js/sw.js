@@ -1,20 +1,45 @@
 const CACHE_PREFIX = 'sa-education-static-';
-const CACHE_NAME = `${CACHE_PREFIX}v4`;
+const CACHE_NAME = `${CACHE_PREFIX}v7`;
 const APP_BASE = new URL('./', self.location.href);
 const STATIC_ASSETS = [
     'manifest.json',
     'assets/css/estilo.css',
+    'assets/css/reference-shell.css',
     'assets/css/login-cadastro.css',
     'assets/css/perfil.css',
     'assets/css/feed.css',
     'assets/css/catalog.css',
+    'assets/css/sala-config.css',
+    'assets/css/configuracao.css',
+    'assets/css/propaganda.css',
     'assets/js/app.js',
+    'assets/js/sidebar.js',
+    'assets/js/perfil.js',
     'assets/js/feed.js',
     'assets/images/logo-app.png',
     'assets/images/logo-app-192.png',
     'assets/images/logo-app-512.png',
-    'assets/images/guia-rapida.png',
-    'assets/images/icons/user-icon.png'
+    'assets/images/icons/user-icon.png',
+    'assets/images/icons/home (1).png',
+    'assets/images/icons/training.png',
+    'assets/images/icons/book (1).png',
+    'assets/images/icons/reading-book.png',
+    'assets/images/icons/questoes.png',
+    'assets/images/icons/winn-icon.png',
+    'assets/images/icons/perfil-de-usuario.png',
+    'assets/images/icons/moedas.png',
+    'assets/images/icons/engrenagem.png',
+    'assets/images/icons/redacao.png',
+    'assets/images/icons/materias/abra-o-livro.png',
+    'assets/images/icons/materias/dna.png',
+    'assets/images/icons/materias/eng.png',
+    'assets/images/icons/materias/filosofia.png',
+    'assets/images/icons/materias/geografia.png',
+    'assets/images/icons/materias/linguistica.png',
+    'assets/images/icons/materias/newton.png',
+    'assets/images/icons/materias/produtos-quimicos.png',
+    'assets/images/icons/materias/simbolo-de-constante-matematica-pi.png',
+    'assets/images/icons/templo-grego.png'
 ];
 const STATIC_PATHS = new Set(STATIC_ASSETS.map((asset) => new URL(asset, APP_BASE).pathname));
 const OFFLINE_RESPONSE = () => new Response(
@@ -38,7 +63,10 @@ const isCacheableResponse = (response) => {
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then((cache) => cache.addAll(STATIC_ASSETS.map((asset) => new URL(asset, APP_BASE).href)))
+            .then((cache) => cache.addAll(STATIC_ASSETS.map((asset) => new Request(
+                new URL(asset, APP_BASE),
+                { cache: 'reload' }
+            ))))
             .then(() => self.skipWaiting())
     );
 });
@@ -58,10 +86,6 @@ self.addEventListener('fetch', (event) => {
     }
 
     const url = new URL(request.url);
-    if (url.origin !== self.location.origin) {
-        return;
-    }
-
     if (url.origin !== self.location.origin) {
         return;
     }

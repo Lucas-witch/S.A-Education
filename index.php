@@ -3,20 +3,6 @@ require __DIR__ . '/includes/auth.php';
 require __DIR__ . '/includes/data.php';
 require_auth();
 
-function subject_icon_for(string $materia): string {
-    $map = [
-        'matematica' => 'assets/images/icons/matematica-icon.png',
-        'biologia' => 'assets/images/icons/biologia-icon.png',
-        'historia' => 'assets/images/icons/historia.png',
-        'portugues' => 'assets/images/icons/portugues.png',
-        'quimica' => 'assets/images/icons/química.png',
-        'química' => 'assets/images/icons/química.png',
-    ];
-
-    $normalized = strtolower(trim($materia));
-    return $map[$normalized] ?? 'assets/images/icons/user-icon.png';
-}
-
 $perfilAtual = current_user_perfil();
 $nomeUser = $_SESSION['usuario_nome'] ?? $_SESSION['usuario_username'] ?? 'Usuário';
 $perfilLabel = perfil_label($perfilAtual ?: 'estudante');
@@ -66,7 +52,7 @@ $heroLink = [
         <p><?= htmlspecialchars($heroText) ?></p>
         <a class="btn light" href="<?= htmlspecialchars($heroLink) ?>"><?= htmlspecialchars($heroButton) ?></a>
     </div>
-    <div class="trophy" aria-label="Conquista">🏆</div>
+    <div class="trophy" aria-label="Conquista"><img src="assets/images/icons/winn-icon.png" alt=""></div>
 </section>
 
 <section class="stats-grid" aria-label="Estatísticas da plataforma">
@@ -93,10 +79,10 @@ $heroLink = [
 </div>
 <div class="grid grid-3">
     <?php foreach ($recentes as $r): ?>
-        <?php $roomId = (int) ($r['id'] ?? 0); $roomIcon = isset($r['icone']) && $r['icone'] !== '' ? (string) $r['icone'] : subject_icon_for((string) ($r['materia'] ?? '')); ?>
+        <?php $roomId = (int) ($r['id'] ?? 0); $roomIcon = subject_icon_for((string) ($r['materia'] ?? '')); ?>
         <a class="card room-card" href="sala.php?id=<?= $roomId ?>">
             <div class="room-icon">
-                <img src="<?= htmlspecialchars($roomIcon, ENT_QUOTES, 'UTF-8') ?>" alt="Ícone da matéria" style="width:38px;height:38px;object-fit:contain;display:block;">
+                <img src="<?= htmlspecialchars($roomIcon, ENT_QUOTES, 'UTF-8') ?>" alt="" aria-hidden="true" class="room-subject-icon">
             </div>
             <div>
                 <h3><?= htmlspecialchars((string) ($r['nome'] ?? 'Sala')) ?></h3>
@@ -105,6 +91,9 @@ $heroLink = [
             <span class="arrow" aria-hidden="true">›</span>
         </a>
     <?php endforeach; ?>
+    <?php if ($recentes === []): ?>
+        <p class="card empty-state" role="status">Você ainda não participa de nenhuma sala.</p>
+    <?php endif; ?>
 </div>
 
 <div class="section-title" style="margin-top:28px;">

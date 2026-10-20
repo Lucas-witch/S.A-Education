@@ -162,16 +162,6 @@ CREATE TABLE `salas` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Despejando dados para a tabela `salas`
---
-
-INSERT INTO `salas` (`id`, `nome`, `prof`, `alunos`, `materia`, `icone`, `codigo`, `privacidade`, `descricao`, `criado_em`) VALUES
-(1, 'Matemática Avançada', 'Prof. Lucas', 24, 'Matemática', 'assets/images/room_icons/math.svg', 'MATH01', 'publica', NULL, '2026-09-28 19:37:08'),
-(2, 'História do Brasil', 'Profa. Marina', 18, 'História', 'assets/images/room_icons/history.svg', 'HIST01', 'publica', NULL, '2026-09-28 19:37:08'),
-(3, 'Física Moderna', 'Prof. Rafael', 32, 'Física', 'assets/images/room_icons/physics.svg', 'PHYS01', 'publica', NULL, '2026-09-28 19:37:08');
-
--- --------------------------------------------------------
-
 --
 -- Estrutura para tabela `salas_usuarios`
 --
@@ -397,7 +387,7 @@ ALTER TABLE `ranking`
 -- AUTO_INCREMENT de tabela `salas`
 --
 ALTER TABLE `salas`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de tabela `salas_usuarios`

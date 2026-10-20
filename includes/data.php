@@ -153,11 +153,24 @@ if (isset($pdo) && $pdo instanceof PDO) {
         $salas = [];
     }
 
-    try {
-        $stmt = $pdo->query('SELECT id, nome, prof, alunos, materia, icone FROM salas ORDER BY criado_em DESC LIMIT 3');
-        $recentes = $stmt->fetchAll();
-    } catch (PDOException $e) {
-        $recentes = [];
+    $usuarioAtualId = filter_var($_SESSION['usuario_id'] ?? null, FILTER_VALIDATE_INT);
+    $recentes = [];
+    if ($usuarioAtualId !== false && $usuarioAtualId > 0) {
+        try {
+            $stmt = $pdo->prepare(
+                'SELECT s.id, s.nome, s.prof, s.alunos, s.materia, s.icone
+                 FROM salas_usuarios su
+                 INNER JOIN salas s ON s.id = su.sala_id
+                 WHERE su.usuario_id = :usuario_id
+                   AND su.status = "ativo"
+                 ORDER BY su.entrou_em DESC
+                 LIMIT 3'
+            );
+            $stmt->execute([':usuario_id' => $usuarioAtualId]);
+            $recentes = $stmt->fetchAll();
+        } catch (PDOException $e) {
+            error_log('[S.A Education][recent_rooms] ' . $e->getMessage());
+        }
     }
 
     try {
@@ -203,7 +216,6 @@ function dashboard_pode_exibir_grafico(array $dados): bool {
         && (int) ($dados['total_tentativas'] ?? 0) > 0
         && count($dados['labels'] ?? []) >= 2;
 }
-
 
 
 

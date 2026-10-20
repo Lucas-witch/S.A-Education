@@ -10,12 +10,6 @@ $plans = [
 
 $users = [];
 
-$salas = [
-    ['nome' => 'Matemática Avançada', 'prof' => 'Prof. Lucas', 'alunos' => 24, 'materia' => 'Matemática', 'icone' => 'assets/images/room_icons/math.svg', 'codigo' => 'MATH01'],
-    ['nome' => 'História do Brasil', 'prof' => 'Profa. Marina', 'alunos' => 18, 'materia' => 'História', 'icone' => 'assets/images/room_icons/history.svg', 'codigo' => 'HIST01'],
-    ['nome' => 'Física Moderna', 'prof' => 'Prof. Rafael', 'alunos' => 32, 'materia' => 'Física', 'icone' => 'assets/images/room_icons/physics.svg', 'codigo' => 'PHYS01'],
-];
-
 try {
     $pdo->beginTransaction();
 
@@ -54,18 +48,6 @@ try {
                 'premium_ativo' => $u['premium_ativo'] ? 1 : 0,
             ]);
         }
-    }
-
-    $salaStmt = $pdo->prepare('INSERT INTO salas (nome, prof, alunos, materia, icone, codigo) VALUES (:nome, :prof, :alunos, :materia, :icone, :codigo) ON DUPLICATE KEY UPDATE nome = VALUES(nome)');
-    foreach ($salas as $s) {
-        $salaStmt->execute([
-            'nome' => $s['nome'],
-            'prof' => $s['prof'],
-            'alunos' => $s['alunos'],
-            'materia' => $s['materia'],
-            'icone' => $s['icone'],
-            'codigo' => $s['codigo'],
-        ]);
     }
 
     $pdo->commit();

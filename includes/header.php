@@ -11,33 +11,31 @@ $current = basename($_SERVER['PHP_SELF']);
 $perfilAtual = strtolower((string) ($_SESSION['usuario_perfil'] ?? 'estudante'));
 $useReferenceShell = !empty($referenceShell);
 $desktopItems = [
-    ['label' => 'Início', 'href' => 'index.php', 'icon' => '⌂'],
-    ['label' => 'Salas', 'href' => 'salas.php', 'icon' => '▦'],
-    ['label' => 'Cursos', 'href' => 'biblioteca.php', 'icon' => '▣'],
-    ['label' => 'Feed', 'href' => 'feed.php', 'icon' => '✦'],
-    ['label' => 'Questões', 'href' => 'quiz.php', 'icon' => '☑'],
-    ['label' => 'Ranking', 'href' => 'ranking.php', 'icon' => '♜'],
+    ['label' => 'Início', 'href' => 'index.php', 'icon' => 'assets/images/icons/home (1).png'],
+    ['label' => 'Salas', 'href' => 'salas.php', 'icon' => 'assets/images/icons/training.png'],
+    ['label' => $useReferenceShell ? 'Biblioteca' : 'Cursos', 'href' => 'biblioteca.php', 'icon' => 'assets/images/icons/book (1).png'],
+    ['label' => 'Feed', 'href' => 'feed.php', 'icon' => 'assets/images/icons/reading-book.png'],
+    ['label' => 'Questões', 'href' => 'quiz.php', 'icon' => 'assets/images/icons/questoes.png'],
+    ['label' => 'Ranking', 'href' => 'ranking.php', 'icon' => 'assets/images/icons/winn-icon.png'],
+    ['label' => 'Meu perfil', 'href' => 'perfil-dashboard.php', 'icon' => 'assets/images/icons/perfil-de-usuario.png'],
+    ['label' => 'Planos', 'href' => 'planos.php', 'icon' => 'assets/images/icons/moedas.png'],
 ];
-  $mobileItems = $desktopItems;
-if ($useReferenceShell) {
-  foreach ($desktopItems as &$menuItem) {
-    if ($menuItem['href'] === 'biblioteca.php') {
-      $menuItem['label'] = 'Biblioteca';
-    }
-  }
-  unset($menuItem);
-  $desktopItems[] = ['label' => 'Meu perfil', 'href' => 'perfil-dashboard.php', 'icon' => '◉'];
-}
+$mobileHrefs = ['index.php', 'feed.php', 'biblioteca.php', 'quiz.php', 'planos.php'];
+$mobileItems = array_values(array_filter(
+    $desktopItems,
+    static fn (array $item): bool => in_array($item['href'], $mobileHrefs, true)
+));
 ?>
-<aside class="sidebar" aria-label="Menu lateral">
+<div class="sidebar-backdrop" data-sidebar-backdrop hidden aria-hidden="true"></div>
+<aside class="sidebar" id="site-navigation" role="dialog" aria-modal="true" aria-label="Menu principal" aria-hidden="true" inert>
   <div class="sidebar-inner">
     <div class="sidebar-header">
       <span>Menu</span>
-      <button type="button" class="sidebar-close" aria-label="Fechar guia rápida" data-sidebar-close>×</button>
+      <button type="button" class="sidebar-close" aria-label="Fechar menu" data-sidebar-close>×</button>
     </div>
     <nav class="nav">
       <?php foreach ($desktopItems as $item): ?>
-        <a class="<?= $current === basename($item['href']) ? 'active' : '' ?>" href="<?= htmlspecialchars((string) $item['href']) ?>" <?= $current === basename($item['href']) ? 'aria-current="page"' : '' ?>><span class="icon"><?= htmlspecialchars((string) $item['icon']) ?></span><?= htmlspecialchars((string) $item['label']) ?></a>
+        <a class="<?= $current === basename($item['href']) ? 'active' : '' ?>" href="<?= esc((string) $item['href']) ?>" <?= $current === basename($item['href']) ? 'aria-current="page"' : '' ?>><span class="icon"><img class="app-nav-icon" src="<?= esc((string) $item['icon']) ?>" alt="" aria-hidden="true"></span><?= esc((string) $item['label']) ?></a>
       <?php endforeach; ?>
       <?php if (isset($_SESSION['usuario_id']) && !$useReferenceShell): ?>
         <form action="logout.php" method="post" class="logout-form">
@@ -73,30 +71,18 @@ if ($useReferenceShell) {
     <img src="assets/images/logo-app.png" alt="S.A Education" id="logo">
   </a>
   <div class="top-header-actions">
-    <button class="quick-guide-button" type="button" aria-label="Abrir guia rápida" aria-expanded="false" data-guide-toggle>
-      <img src="assets/images/guia-rapida.png" alt="">
+    <button class="menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="site-navigation" data-sidebar-toggle>
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
     </button>
-    <?php if ($useReferenceShell): ?>
+    <?php if (isset($_SESSION['usuario_id'])): ?>
       <a class="top-user" href="perfil-dashboard.php">
         <img src="<?= esc((string) ($_SESSION['perfil_imagem'] ?? 'assets/images/icons/user-icon.png')) ?>" alt="">
-        <span><?= esc((string) ($_SESSION['usuario_nome'] ?? $_SESSION['usuario_username'] ?? 'Usuário')) ?></span>
+        <?php if ($useReferenceShell): ?>
+          <span><?= esc((string) ($_SESSION['usuario_nome'] ?? $_SESSION['usuario_username'] ?? 'Usuário')) ?></span>
+        <?php endif; ?>
       </a>
     <?php endif; ?>
   </div>
 </div>
-
-<div id="quick-guide-overlay" class="quick-guide-overlay" hidden></div>
-<div id="quick-guide-panel" class="quick-guide-panel" hidden aria-hidden="true" aria-label="Guia rápida">
-  <div class="quick-guide-card">
-    <div class="quick-guide-header">
-      <h3>Guia rápida</h3>
-      <button type="button" class="sidebar-close" aria-label="Fechar guia rápida" data-guide-close>×</button>
-    </div>
-    <div class="quick-guide-links">
-      <?php foreach ($desktopItems as $item): ?>
-        <a href="<?= htmlspecialchars((string) $item['href']) ?>" class="quick-guide-link"><?= htmlspecialchars((string) $item['label']) ?></a>
-      <?php endforeach; ?>
-    </div>
-  </div>
-</div>
-

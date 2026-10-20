@@ -14,7 +14,7 @@
    width:100%;
    border:1px solid var(--border);
    border-radius:11px;
-   background:#fff;
+   background:var(--surface);
    padding:12px 13px;
    outline:none;
 }
@@ -26,8 +26,8 @@ textarea.form-control{min-height:100px;resize:vertical}
    background:var(--purple);color:#fff;font-weight:700;
 }
 .btn.light{
-   background:#c7eeb4;
-   color:#172317
+   background:var(--green);
+   color:var(--text)
 }
 .btn.outline{
    background:transparent;

@@ -42,6 +42,39 @@ function esc(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
+function subject_icon_for(string $materia): string {
+    $normalized = strtr(mb_strtolower(trim($materia), 'UTF-8'), [
+        'á' => 'a', 'à' => 'a', 'â' => 'a', 'ã' => 'a',
+        'é' => 'e', 'ê' => 'e', 'í' => 'i',
+        'ó' => 'o', 'ô' => 'o', 'õ' => 'o',
+        'ú' => 'u', 'ü' => 'u', 'ç' => 'c',
+    ]);
+    $icons = [
+        'biologia' => 'assets/images/icons/materias/dna.png',
+        'matematica' => 'assets/images/icons/materias/simbolo-de-constante-matematica-pi.png',
+        'historia' => 'assets/images/icons/templo-grego.png',
+        'geografia' => 'assets/images/icons/materias/geografia.png',
+        'quimica' => 'assets/images/icons/materias/produtos-quimicos.png',
+        'fisica' => 'assets/images/icons/materias/newton.png',
+        'redacao' => 'assets/images/icons/redacao.png',
+        'sociologia' => 'assets/images/icons/materias/abra-o-livro.png',
+        'filosofia' => 'assets/images/icons/materias/filosofia.png',
+        'portugues' => 'assets/images/icons/materias/linguistica.png',
+        'ingles' => 'assets/images/icons/materias/eng.png',
+        'lingua inglesa' => 'assets/images/icons/materias/eng.png',
+        'espanhol' => 'assets/images/icons/materias/eng.png',
+        'linguas estrangeiras' => 'assets/images/icons/materias/eng.png',
+    ];
+
+    foreach ($icons as $subject => $icon) {
+        if ($normalized === $subject || str_starts_with($normalized, $subject . ' ')) {
+            return $icon;
+        }
+    }
+
+    return 'assets/images/icons/materias/abra-o-livro.png';
+}
+
 function csrf_token(): string {
     if (empty($_SESSION['csrf_token'])) {
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -54,6 +87,24 @@ function verify_csrf($token): void {
         http_response_code(400);
         exit('Requisição inválida (CSRF).');
     }
+}
+
+function validate_profile_fields(string $name, string $email, string $username): array {
+    $errors = [];
+
+    if ($name === '' || mb_strlen($name, 'UTF-8') < 3 || mb_strlen($name, 'UTF-8') > 150) {
+        $errors['nome_completo'] = 'Informe um nome entre 3 e 150 caracteres.';
+    }
+
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 255) {
+        $errors['email'] = 'Informe um e-mail válido.';
+    }
+
+    if (!preg_match('/^[A-Za-z0-9_.-]{3,40}$/', $username)) {
+        $errors['username'] = 'Use de 3 a 40 caracteres no nome de usuário: letras, números, ponto, hífen ou sublinhado.';
+    }
+
+    return $errors;
 }
 
 function auth_debug_log(string $evento, array $contexto = []): void {

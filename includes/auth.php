@@ -26,6 +26,26 @@ function is_login_perfil_permitido(?string $perfil): bool {
     return in_array($perfilNormalizado, LOGIN_PERFIS_PERMITIDOS, true);
 }
 
+function sync_authenticated_profile_session(array $usuario): void {
+    $sessionId = filter_var($_SESSION['usuario_id'] ?? null, FILTER_VALIDATE_INT);
+    $usuarioId = filter_var($usuario['id'] ?? null, FILTER_VALIDATE_INT);
+    if ($sessionId === false || $usuarioId === false || $sessionId <= 0 || $sessionId !== $usuarioId) {
+        throw new InvalidArgumentException('O usuário do perfil não corresponde à sessão autenticada.');
+    }
+
+    $imagem = trim((string) ($usuario['perfil_imagem'] ?? ''));
+    if ($imagem === '') {
+        $imagem = 'assets/images/icons/user-icon.png';
+    }
+
+    $_SESSION['usuario_nome'] = (string) ($usuario['nome_completo'] ?? '');
+    $_SESSION['usuario_email'] = (string) ($usuario['email'] ?? '');
+    $_SESSION['usuario_username'] = (string) ($usuario['username'] ?? '');
+    $_SESSION['perfil_imagem'] = $imagem;
+    $_SESSION['usuario_foto'] = $imagem;
+    $_SESSION['usuario_imagem'] = $imagem;
+}
+
 function set_authenticated_session(array $usuario): void {
     $perfil = normalize_perfil($usuario['perfil'] ?? '');
 
@@ -51,8 +71,13 @@ function set_authenticated_session(array $usuario): void {
     $_SESSION['usuario_pode_criar_salas'] = (bool) ($usuario['pode_criar_salas'] ?? false);
     $_SESSION['usuario_pode_criar_comunidades_privadas'] = (bool) ($usuario['pode_criar_comunidades_privadas'] ?? false);
     $_SESSION['usuario_pode_postar_aulas_ilimitadas'] = (bool) ($usuario['pode_postar_aulas_ilimitadas'] ?? false);
-    $_SESSION['perfil_imagem'] = (string) ($usuario['perfil_imagem'] ?? 'assets/images/icons/user-icon.png');
-    $_SESSION['usuario_foto'] = $_SESSION['perfil_imagem'];
+    sync_authenticated_profile_session([
+        'id' => (int) $usuario['id'],
+        'nome_completo' => (string) ($usuario['nome_completo'] ?? $usuario['nome'] ?? ''),
+        'email' => (string) ($usuario['email'] ?? ''),
+        'username' => (string) ($usuario['username'] ?? ''),
+        'perfil_imagem' => (string) ($usuario['perfil_imagem'] ?? ''),
+    ]);
 }
 
 function is_estudante(): bool {

@@ -4,14 +4,14 @@
     display: grid;
     place-items: center;
     padding: 25px;
-    background: url('../images/fundo.png') center / cover fixed;
+    background: var(--bg);
 }
 
 .login-wrap {
     width: min(930px, 100%);
     display: grid;
     grid-template-columns: 1fr 1fr;
-    background: #fff;
+    background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 28px;
     overflow: hidden;
@@ -115,7 +115,7 @@
     width: 100%;
     border: 1px solid var(--border);
     border-radius: 11px;
-    background: #fff;
+    background: var(--surface);
     padding: 12px 13px;
     outline: none;
 }
@@ -209,14 +209,14 @@
 }
 
 .alert.error {
-    background: #fdecec;
-    color: #9c2d2d;
-    border: 1px solid #f2b9b9;
+    background: var(--danger-soft);
+    color: var(--danger);
+    border: 1px solid var(--danger-border);
 }
 
 .alert.success {
-    background: #edf9ee;
-    color: #2f6c35;
+    background: var(--green-soft);
+    color: var(--green-deep);
     border: 1px solid #cce7d0;
 }
 

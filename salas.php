@@ -9,20 +9,6 @@ require_once __DIR__ . '/conexao.php';
 require_once __DIR__ . '/includes/room_search.php';
 require_auth();
 
-function subject_icon_for(string $materia): string {
-    $map = [
-        'matematica' => 'assets/images/icons/matematica-icon.png',
-        'biologia' => 'assets/images/icons/biologia-icon.png',
-        'historia' => 'assets/images/icons/historia.png',
-        'portugues' => 'assets/images/icons/portugues.png',
-        'quimica' => 'assets/images/icons/química.png',
-        'química' => 'assets/images/icons/química.png',
-    ];
-
-    $normalized = strtolower(trim($materia));
-    return $map[$normalized] ?? 'assets/images/icons/user-icon.png';
-}
-
 $readFilter = static function (string $name, int $maxLength): string {
   $value = $_GET[$name] ?? '';
   if (!is_string($value) || mb_strlen($value) > $maxLength) {
@@ -116,11 +102,11 @@ $acaoLink = [
       <div class="section-title"><h2>Salas disponíveis</h2></div>
       <div class="grid grid-3" id="roomsGrid">
         <?php foreach ($salas as $s): ?>
-          <?php $roomId = (int) ($s['id'] ?? 0); $roomIcon = !empty($s['icone']) ? (string) $s['icone'] : subject_icon_for((string) ($s['materia'] ?? '')); ?>
+          <?php $roomId = (int) ($s['id'] ?? 0); $roomIcon = subject_icon_for((string) ($s['materia'] ?? '')); ?>
           <?php $roomAccess = strtolower((string) ($s['privacidade'] ?? 'publica')) === 'privada' ? 'privada' : 'publica'; ?>
           <a class="card room-card" href="sala.php?id=<?= $roomId ?>">
             <div class="room-icon">
-              <img src="<?= esc((string) $roomIcon) ?>" alt="Ícone da matéria" style="width:38px;height:38px;object-fit:contain;display:block">
+              <img src="<?= esc((string) $roomIcon) ?>" alt="" aria-hidden="true" class="room-subject-icon">
             </div>
             <div>
               <h3><?= esc((string) ($s['nome'] ?? 'Sala')) ?></h3>

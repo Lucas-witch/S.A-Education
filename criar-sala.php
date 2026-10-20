@@ -34,15 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($erro === '') {
         $usuarioId = (int) $_SESSION['usuario_id'];
         $nomeProfessor = trim((string) ($_SESSION['usuario_nome'] ?? $_SESSION['usuario_username'] ?? ''));
-        $icones = [
-            'matematica' => 'assets/images/icons/matematica-icon.png',
-            'biologia' => 'assets/images/icons/biologia-icon.png',
-            'historia' => 'assets/images/icons/historia.png',
-            'portugues' => 'assets/images/icons/portugues.png',
-            'quimica' => 'assets/images/icons/química.png',
-        ];
-        $chaveMateria = strtolower($materia);
-        $icone = $icones[$chaveMateria] ?? 'assets/images/icons/user-icon.png';
+        $icone = subject_icon_for($materia);
 
         try {
             $pdo->beginTransaction();

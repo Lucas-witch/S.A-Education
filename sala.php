@@ -28,7 +28,7 @@ $stmt = $pdo->prepare('SELECT 1 FROM salas_usuarios WHERE sala_id = :sala_id AND
 $stmt->execute([':sala_id' => $id, ':usuario_id' => (int) $_SESSION['usuario_id']]);
 $isMember = (bool) $stmt->fetchColumn();
 
-$roomIcon = !empty($sala['icone']) ? (string) $sala['icone'] : 'assets/images/icons/user-icon.png';
+$roomIcon = subject_icon_for((string) ($sala['materia'] ?? ''));
 $privacidade = strtolower((string) ($sala['privacidade'] ?? 'publica')) === 'privada' ? 'Privada' : 'Pública';
 $nomeUsuario = $_SESSION['usuario_nome'] ?? ($_SESSION['usuario_username'] ?? 'Usuário');
 $codigoCriado = $_SESSION['sala_codigo_criado'][$id] ?? null;
@@ -57,7 +57,7 @@ unset($_SESSION['sala_codigo_criado'][$id]);
         <section class="card" style="padding:24px; display:grid; gap:20px;">
             <div class="room-banner" style="margin:0;">
                 <div class="big-icon">
-                    <img src="<?= htmlspecialchars((string) $roomIcon, ENT_QUOTES, 'UTF-8') ?>" alt="Ícone da sala" style="width:42px;height:42px;object-fit:contain;display:block;">
+                    <img src="<?= htmlspecialchars((string) $roomIcon, ENT_QUOTES, 'UTF-8') ?>" alt="" aria-hidden="true" class="room-subject-icon room-subject-icon-large">
                 </div>
                 <div>
                     <strong style="display:block; font-size:12px; letter-spacing:.08em; text-transform:uppercase; opacity:.9;">Sala</strong>

@@ -2,8 +2,8 @@
 declare(strict_types=1);
 
 require __DIR__ . '/includes/auth.php';
-require __DIR__ . '/includes/data.php';
 require_auth();
+require __DIR__ . '/includes/data.php';
 
 function build_line_points(array $values, int $width, int $height, int $padding): string {
     if ($values === []) {
@@ -26,15 +26,35 @@ function build_line_points(array $values, int $width, int $height, int $padding)
 }
 
 $perfilAtual = current_user_perfil();
-$nomeUsuario = $_SESSION['usuario_nome'] ?? ($_SESSION['usuario_username'] ?? 'Usuário');
-$username = $_SESSION['usuario_username'] ?? 'usuario';
-$email = $_SESSION['usuario_email'] ?? '—';
+$usuarioId = (int) $_SESSION['usuario_id'];
+$usuarioStmt = $pdo->prepare(
+    'SELECT id, nome_completo, email, username, perfil_imagem
+     FROM usuarios
+     WHERE id = :id
+     LIMIT 1'
+);
+$usuarioStmt->execute(['id' => $usuarioId]);
+$usuarioPerfil = $usuarioStmt->fetch();
+
+if (!$usuarioPerfil) {
+    $_SESSION = [];
+    header('Location: login.php');
+    exit;
+}
+
+sync_authenticated_profile_session($usuarioPerfil);
+$nomeUsuario = $_SESSION['usuario_nome'];
+$username = $_SESSION['usuario_username'];
+$email = $_SESSION['usuario_email'];
 $perfilLabel = perfil_label($perfilAtual ?: 'estudante');
 
-$avatarSource = $_SESSION['usuario_foto'] ?? ($_SESSION['usuario_imagem'] ?? ($_SESSION['perfil_imagem'] ?? 'assets/images/icons/user-icon.png'));
-if ($avatarSource === null || $avatarSource === '') {
-    $avatarSource = 'assets/images/icons/user-icon.png';
-}
+$avatarSource = $_SESSION['perfil_imagem'];
+$profileFlash = $_SESSION['profile_edit_flash'] ?? null;
+$profileFormValues = $_SESSION['profile_edit_form'] ?? [];
+unset($_SESSION['profile_edit_flash'], $_SESSION['profile_edit_form']);
+$formName = (string) ($profileFormValues['nome_completo'] ?? $nomeUsuario);
+$formEmail = (string) ($profileFormValues['email'] ?? $email);
+$formUsername = (string) ($profileFormValues['username'] ?? $username);
 
 $performanceData = obter_dados_dashboard_usuario($pdo, (int) ($_SESSION['usuario_id'] ?? 0));
 $timelineLabels = $performanceData['labels'] ?? [];
@@ -65,6 +85,7 @@ $errosPoints = build_line_points($erros, $chartWidth, $chartHeight, $chartPaddin
     <title>Meu Perfil | S.A Education</title>
     <link rel="stylesheet" href="assets/css/estilo.css">
     <link rel="stylesheet" href="assets/css/perfil.css">
+    <script src="assets/js/perfil.js" defer></script>
 </head>
 <body>
     <div class="app">
@@ -110,6 +131,58 @@ $errosPoints = build_line_points($erros, $chartWidth, $chartHeight, $chartPaddin
                     <?php endif; ?>
                 </section>
 
+                <?php if (is_array($profileFlash) && isset($profileFlash['message'])): ?>
+                    <div class="profile-edit-alert <?= ($profileFlash['type'] ?? '') === 'success' ? 'is-success' : 'is-error' ?>" role="<?= ($profileFlash['type'] ?? '') === 'success' ? 'status' : 'alert' ?>">
+                        <?= htmlspecialchars((string) $profileFlash['message'], ENT_QUOTES, 'UTF-8') ?>
+                    </div>
+                <?php endif; ?>
+
+                <section class="panel profile-edit-panel" id="editar-perfil" aria-labelledby="profile-edit-title">
+                    <div class="panel-header">
+                        <div>
+                            <h3 id="profile-edit-title">Editar perfil</h3>
+                            <span>Atualize seus dados pessoais e sua foto.</span>
+                        </div>
+                    </div>
+
+                    <form action="processa_perfil.php" method="post" enctype="multipart/form-data" class="profile-edit-form" data-profile-form>
+                        <input type="hidden" name="csrf" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
+
+                        <div class="profile-edit-photo">
+                            <img src="<?= htmlspecialchars((string) $avatarSource, ENT_QUOTES, 'UTF-8') ?>" alt="Prévia da foto de perfil" data-profile-preview>
+                            <div>
+                                <label for="profile-photo">Foto de perfil</label>
+                                <input type="file" id="profile-photo" name="foto" accept="image/jpeg,image/png,image/webp" data-profile-file>
+                                <small>JPEG, PNG ou WebP; tamanho máximo de 5 MB.</small>
+                                <small class="profile-upload-status" role="status" aria-live="polite" data-profile-upload-status></small>
+                                <?php if ($avatarSource !== 'assets/images/icons/user-icon.png'): ?>
+                                    <label class="profile-remove-photo">
+                                        <input type="checkbox" name="remover_foto" value="1" data-profile-remove>
+                                        Remover foto personalizada
+                                    </label>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+
+                        <div class="profile-edit-fields">
+                            <label class="profile-edit-field">
+                                <span>Nome completo <strong aria-hidden="true">*</strong></span>
+                                <input type="text" name="nome_completo" value="<?= htmlspecialchars($formName, ENT_QUOTES, 'UTF-8') ?>" minlength="3" maxlength="150" autocomplete="name" required>
+                            </label>
+                            <label class="profile-edit-field">
+                                <span>Nome de usuário <strong aria-hidden="true">*</strong></span>
+                                <input type="text" name="username" value="<?= htmlspecialchars($formUsername, ENT_QUOTES, 'UTF-8') ?>" minlength="3" maxlength="40" pattern="[A-Za-z0-9_.-]{3,40}" autocomplete="username" required>
+                            </label>
+                            <label class="profile-edit-field">
+                                <span>E-mail <strong aria-hidden="true">*</strong></span>
+                                <input type="email" name="email" value="<?= htmlspecialchars($formEmail, ENT_QUOTES, 'UTF-8') ?>" maxlength="255" autocomplete="email" required>
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Salvar alterações</button>
+                    </form>
+                </section>
+
                 <?php if ($showPerformanceChart): ?>
                     <div class="content-grid">
                         <section class="panel chart-panel" aria-label="Gráfico de desempenho ao longo do tempo">
@@ -128,16 +201,16 @@ $errosPoints = build_line_points($erros, $chartWidth, $chartHeight, $chartPaddin
                                 <?php foreach ($timelineLabels as $index => $label):
                                     $x = $chartPadding + (($chartWidth - ($chartPadding * 2)) / (count($timelineLabels) - 1)) * $index;
                                 ?>
-                                    <text x="<?= $x ?>" y="<?= $chartHeight - $chartPadding + 18 ?>" font-size="11" text-anchor="middle" fill="#6f6872"><?= htmlspecialchars((string) $label, ENT_QUOTES, 'UTF-8') ?></text>
+                                    <text x="<?= $x ?>" y="<?= $chartHeight - $chartPadding + 18 ?>" font-size="11" text-anchor="middle" fill="#625E72"><?= htmlspecialchars((string) $label, ENT_QUOTES, 'UTF-8') ?></text>
                                 <?php endforeach; ?>
 
-                                <polyline points="<?= htmlspecialchars((string) $acertosPoints, ENT_QUOTES, 'UTF-8') ?>" fill="none" stroke="#71308b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-                                <polyline points="<?= htmlspecialchars((string) $errosPoints, ENT_QUOTES, 'UTF-8') ?>" fill="none" stroke="#9edb86" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                                <polyline points="<?= htmlspecialchars((string) $acertosPoints, ENT_QUOTES, 'UTF-8') ?>" fill="none" stroke="#4C2365" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                                <polyline points="<?= htmlspecialchars((string) $errosPoints, ENT_QUOTES, 'UTF-8') ?>" fill="none" stroke="#66BB6A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
                             </svg>
 
                             <div class="legend">
-                                <span class="legend-item"><span class="legend-dot" style="background:#71308b"></span> Acertos</span>
-                                <span class="legend-item"><span class="legend-dot" style="background:#9edb86"></span> Erros</span>
+                                <span class="legend-item"><span class="legend-dot" style="background:#4C2365"></span> Acertos</span>
+                                <span class="legend-item"><span class="legend-dot" style="background:#66BB6A"></span> Erros</span>
                             </div>
                             <?php if ($performanceSummary['total_respostas'] > 0): ?>
                                 <div class="performance-summary" aria-label="Resumo percentual de acertos e erros">
