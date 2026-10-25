@@ -21,6 +21,29 @@ $desktopItems = [
     ['label' => 'Planos', 'href' => 'planos.php', 'icon' => 'assets/images/icons/moedas.png'],
 ];
 $mobileHrefs = ['index.php', 'feed.php', 'biblioteca.php', 'quiz.php', 'planos.php'];
+if (isset($_SESSION['usuario_id']) || isset($_SESSION['instituicao_usuario_id'])) {
+    $desktopItems[] = ['label' => 'Configurações', 'href' => 'configuracoes.php', 'icon' => 'assets/images/icons/engrenagem.png'];
+    $mobileHrefs[] = 'configuracoes.php';
+}
+if (
+    isset($_SESSION['instituicao_usuario_id'])
+    || in_array($perfilAtual, ['estudante', 'professor'], true)
+) {
+    $desktopItems[] = ['label' => 'Portal acadêmico', 'href' => 'instituicao-portal.php', 'icon' => 'assets/images/icons/book (1).png'];
+    $mobileHrefs[] = 'instituicao-portal.php';
+}
+if (is_admin_user()) {
+    $adminItem = ['label' => 'Administração', 'href' => 'admin-permissoes.php', 'icon' => 'assets/images/icons/perfil-de-usuario.png'];
+    $desktopItems[] = $adminItem;
+    $mobileHrefs[] = $adminItem['href'];
+} elseif ($perfilAtual === 'professor') {
+    require_once __DIR__ . '/admin_console.php';
+    if (admin_user_can_manage_official_content($pdo, (int) ($_SESSION['usuario_id'] ?? 0))) {
+        $officialContentItem = ['label' => 'Conteúdo oficial', 'href' => 'admin-conteudo-oficial.php', 'icon' => 'assets/images/icons/book (1).png'];
+        $desktopItems[] = $officialContentItem;
+        $mobileHrefs[] = $officialContentItem['href'];
+    }
+}
 $mobileItems = array_values(array_filter(
     $desktopItems,
     static fn (array $item): bool => in_array($item['href'], $mobileHrefs, true)
@@ -61,6 +84,9 @@ $mobileItems = array_values(array_filter(
 </aside>
 
 <div class="top-header-shell">
+  <?php if (isset($_SESSION['usuario_id']) || isset($_SESSION['instituicao_usuario_id'])): ?>
+    <script src="assets/js/configuracoes.js" defer></script>
+  <?php endif; ?>
   <?php if ($useReferenceShell): ?>
     <form class="global-search" action="pesquisa.php" method="get" role="search">
       <span aria-hidden="true">#</span>

@@ -93,7 +93,7 @@ unset($_SESSION['dados_instituicao'], $_SESSION['erro_instituicao']);
             <button class="btn btn-primary" type="submit">Criar acesso institucional</button>
         </form>
 
-        <p class="switch">Já possui acesso? <a href="login.php">Entrar</a></p>
+        <p class="switch">Já possui acesso? <a href="login-instituicao.php">Entrar como instituição</a></p>
     </section>
 </main>
 <script src="assets/js/app.js"></script>

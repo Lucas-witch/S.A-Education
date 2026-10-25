@@ -1,38 +1,30 @@
-# Correções de autenticação — S.A Education
+# Diagnóstico e correção de autenticação — S.A Education
 
-## Problemas encontrados
+## Causa confirmada no banco local
 
-1. `processa_login.php` reutilizava o placeholder `:login` duas vezes com `PDO::ATTR_EMULATE_PREPARES = false`, podendo causar `SQLSTATE[HY093]`.
-2. `processa_redefinir_senha.php` reutilizava `:identificador` da mesma forma, causando o mesmo tipo de erro.
-3. O login fazia `LEFT JOIN planos` e selecionava muitas colunas opcionais. Se o banco local fosse de uma versão anterior, uma coluna ausente fazia todo o login lançar `PDOException`.
-4. O destino correto após o login é `perfil-dashboard.php`; não deve existir um redirecionamento intermediário para `dashboard.php`.
+O banco `sa_education` já tinha a tabela `usuarios`, então a inicialização automática do schema não executava atualizações de um banco existente. Faltavam `auth_rate_limits`, `password_reset_tokens` e `usuarios.auth_version`. Como tanto login quanto redefinição consultam o limitador de tentativas logo no início, as duas rotas falhavam antes de validar a senha ou emitir o link.
 
-## Alterações
+A migração aditiva `db/migrate_security_features.php` foi aplicada ao banco local. Ela criou as estruturas ausentes, manteve os registros existentes e acrescentou os índices únicos somente após verificar duplicatas. O login continua aceitando apenas credenciais válidas de contas `estudante` ou `professor`; não há bypass de senha nem desativação do limitador.
 
-- Placeholders separados para e-mail e username em login e redefinição.
-- Login passa a consultar `usuarios.*` sem depender da tabela `planos` ou das colunas de progresso.
-- Validação do perfil permanece em PHP e aceita somente `estudante` e `professor` no login comum.
-- Redefinição aplica `password_hash(..., PASSWORD_DEFAULT)`.
-- Erros PDO são registrados no log do PHP/Apache com os prefixos:
-  - `[S.A Education][login][PDO]`
-  - `[S.A Education][redefinir_senha][PDO]`
-- O login bem-sucedido agora redireciona diretamente para `perfil-dashboard.php`.
+## Recuperação de senha
 
-## Evidência da revisão final
+- Em localhost/127.0.0.1, quando `APP_BASE_URL` não está definido, a URL é derivada do host local e do diretório da aplicação.
+- Em produção, `APP_BASE_URL` deve ser definida como URL HTTPS canônica.
+- O envio depende de configuração SMTP real (`SMTP_HOST`, `SMTP_PORT`, `SMTP_ENCRYPTION`, `SMTP_USERNAME`, `SMTP_PASSWORD` e `SMTP_FROM_EMAIL`). A aplicação não carrega `.env` automaticamente.
+- Se o servidor SMTP falhar, o token pendente é removido, a falha é registrada no log PHP/Apache e a solicitação não é apresentada como concluída.
+- A nova senha é armazenada por `password_hash`; o incremento de `auth_version` invalida sessões anteriores.
 
-- Os PHPs modificados passaram `php -l` com PHP 8.0.30.
-- Os testes automatizados existentes passaram; não foi concluído um ciclo browser com conta descartável.
-- Os logs de depuração não registram senha, token CSRF, e-mail, username ou identificador de usuário; os eventos usam estados booleanos e nomes de evento.
-- O logout limpa a sessão e envia `no-store`; páginas protegidas enviam cabeçalhos privados por `includes/auth.php`.
+## Verificação local
 
-## Teste manual ainda necessário
+Use PHP do XAMPP e variáveis do banco configuradas para CLI. Para um banco existente, faça backup e execute:
 
-1. Substitua a pasta do projeto no `htdocs`.
-2. Acesse `http://localhost/saeducation/login.php`.
-3. Entre com uma conta `estudante` ou `professor` criada pelo cadastro.
-4. Verifique se o sistema abre a página principal.
-5. Saia da conta e teste `Esqueci minha senha`.
-6. Defina uma senha com pelo menos 8 caracteres, uma maiúscula e um número ou símbolo.
-7. Entre novamente com a nova senha.
+```powershell
+$env:APP_ENV = 'development'
+$env:DB_HOST = '127.0.0.1'
+$env:DB_NAME = 'sa_education'
+$env:DB_USER = 'root'
+$env:DB_PASS = ''
+& 'C:\xampp\php\php.exe' db\migrate_security_features.php
+```
 
-Se ainda surgir uma mensagem genérica, consulte o log do XAMPP, normalmente em `C:\xampp\apache\logs\error.log`.
+Configure as mesmas variáveis de banco no Apache e `SMTP_*` com credenciais do provedor de e-mail. Teste com uma conta descartável. Não use dados reais, tokens ou senhas em logs e capturas compartilhadas. Em caso de falha, consulte `C:\xampp\apache\logs\error.log`.

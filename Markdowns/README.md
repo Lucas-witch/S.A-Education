@@ -1,8 +1,8 @@
 # S.A Education — primeira versão de teste
 
-Relatório da primeira versão de teste da plataforma S.A Education. Esta entrega reúne a navegação compartilhada, o perfil do usuário, as principais páginas acadêmicas e uma primeira etapa de estabilização visual. O projeto continua em desenvolvimento: recursos descritos como próximos passos não devem ser considerados disponíveis nesta versão.
+Relatório da primeira versão de teste da plataforma S.A Education. Esta entrega reúne a navegação compartilhada, o perfil do usuário, as principais páginas acadêmicas e correções incrementais de autenticação, privacidade, configuração e acessibilidade. O projeto continua em desenvolvimento: recursos descritos como próximos passos não devem ser considerados disponíveis nesta versão.
 
-**Versão:** primeira versão de teste · **Relatório atualizado:** 19 de outubro de 2026 · **Estado:** em validação; não aprovada para produção.
+**Versão:** primeira versão de teste · **Relatório atualizado:** 20 de outubro de 2026 · **Estado:** em validação; não aprovada para produção.
 
 ## Relatório da versão
 
@@ -12,23 +12,49 @@ Relatório da primeira versão de teste da plataforma S.A Education. Esta entreg
 - **Navegação compartilhada:** centralizados os links de Início, Salas, Biblioteca/Cursos, Feed, Questões, Ranking e Meu perfil. Os rótulos da navegação móvel são derivados da mesma lista para evitar diferenças em relação ao menu.
 - **Perfil:** implementada edição de nome, e-mail e nome de usuário, com validação de unicidade, proteção CSRF, uso do usuário autenticado e persistência via PDO. A foto aceita JPEG, PNG e WebP até 5 MB, é validada no servidor e pode ser pré-visualizada, alterada ou removida. `usuarios.perfil_imagem` é a fonte canônica e os dados exibidos são sincronizados com a sessão.
 - **Estilos compartilhados:** removidas redefinições do shell que alteravam a geometria do cabeçalho e da navegação entre páginas; organizadas regras e breakpoints globais, preservando estilos específicos de páginas.
-- **Atualização de recursos:** service worker avançado para o cache estático `v7`, com precache de caminhos explícitos, invalidação de caches estáticos anteriores e registro sem cache HTTP do script do worker. Documentos de navegação e respostas privadas não são armazenados pelo cache estático.
+- **Atualização de recursos:** service worker avançado para o cache estático `v8`, com precache de caminhos explícitos, invalidação de caches estáticos anteriores e registro sem cache HTTP do script do worker. Documentos de navegação e respostas privadas não são armazenados pelo cache estático.
 - **Ícones e salas:** integrados os novos ícones à navegação e às matérias; a página inicial lista salas com vínculo ativo do usuário em vez de usar a lista geral. Entradas de salas de demonstração foram removidas do SQL/seeder e da base local usada no desenvolvimento.
-- **Planos:** adicionada uma página informativa que apresenta os planos e recursos cadastrados. Não há checkout nem confirmação de pagamento nesta versão.
+- **Planos:** catálogo de produto separado dos perfis, com valores mensais definidos, validação de renda ainda pendente, limites do professor gratuito e preços institucionais armazenados no banco. A página apresenta os planos da categoria da conta; não há checkout nem confirmação de pagamento nesta versão.
+- **Recuperação de conta:** substituído o reset baseado somente em e-mail/username por solicitação antienumeração e token de uso único com validade de uma hora. A entrega depende de SMTP configurado no ambiente; a redefinição incrementa a versão de autenticação para invalidar sessões anteriores.
+- **Autenticação institucional:** criado fluxo e sessão separados para instituições, sem adicionar o perfil institucional ao allowlist do login de estudante/professor. A administração pode validar/rejeitar instituições e aprovar/rejeitar professores com auditoria. O painel permite convidar contas cadastradas, aceitar convites autenticados, cancelar convites e revogar vínculos; o acesso a conteúdo institucional exige vínculo ativo, validação e assinatura ativa.
+- **Privacidade do ranking:** participação agora depende de opt-in explícito; o público recebe somente username, posição e pontuação. Os dados completos não são exibidos e o estado vazio não usa usuários fictícios.
+- **Proteções operacionais:** adicionados rate limits com buckets pseudonimizados, cabeçalhos `no-store` no endpoint privado, validação de dimensão de foto, reprocessamento JPEG via GD em produção, configuração de banco por ambiente, `.gitignore` para segredos/uploads e migrações CLI idempotentes ou protegidas contra repetição web.
+- **Acessibilidade:** restaurados indicadores de foco nas buscas e controles interativos; a validação de contraste foi calculada para as combinações principais de texto e superfície.
+
+### Atualização — permissões e cotas (25 de outubro de 2026)
+
+- Centralizada a resolução de perfil, aprovação, plano, confirmação/expiração de assinatura, validação institucional e permissões administrativas em `includes/permissions.php`. As páginas autenticadas recarregam as permissões do banco, não confiam no plano legado armazenado na sessão e falham de forma explícita se não puderem validá-las.
+- Adicionada a migração reversível `db/migrate_permissions.php up|down`. A migração cria `product_plans`, estados de aprovação/validação, assinaturas, vínculo de autoria na Biblioteca, agrupamento mensal de questões, auditoria e tabelas de membros/convites institucionais. No MySQL/MariaDB, `down` não é atômico e apaga os dados desses novos recursos; exige backup.
+- Professores são registrados como pendentes até aprovação administrativa. A tela `admin-permissoes.php` também valida instituições e registra cada decisão sem criar/confirmar pagamentos.
+- Professores gratuitos aprovados têm cotas transacionais no servidor e banco: cinco aulas em vídeo, um material/livro e um banco mensal de até 100 questões. O Feed genérico e dúvidas continuam sem cota; as cotas também se aplicam à Biblioteca. Rascunhos podem ser salvos, editados e publicados depois, com nova validação ao publicar.
+- O catálogo contém os valores solicitados: estudante Premium R$ 70, estudante com desconto R$ 21 após validação ainda a definir, professor Premium R$ 100 e as quatro categorias institucionais. A expiração não remove nem despublica publicações.
+- A migração foi aplicada ao banco de desenvolvimento `sa_education` após backup local; a migração `up` e sua repetição, além de `down`/`up`, foram exercitadas em banco descartável MariaDB 10.4.
+- Convites institucionais: e-mail apenas para conta existente, token aleatório de uso único armazenado como hash, associação ao usuário convidado, verificação de perfil/aprovação e validade atual da assinatura no envio e no aceite. Revogações/cancelamentos e convites são registrados em `institution_audit_log`. Entrega SMTP real depende da configuração do ambiente.
+- Feed, Biblioteca e busca aplicam o vínculo ativo, a validação, o plano institucional compatível e a assinatura paga dentro da validade nas consultas de publicações/dados. A Biblioteca ainda não possui armazenamento privado nem entrega protegida de arquivos, e a interface de criação de conteúdo próprio da instituição continua pendente; esses itens devem ser concluídos antes de afirmar isolamento de arquivos compartilhados fora da aplicação.
+- A ampliação da migração `db/migrate_permissions.php up` foi aplicada ao banco de desenvolvimento `sa_education` após backup local. As tabelas institucionais novas passaram por `up/down` em banco MariaDB descartável, e a suíte completa passou com 12/12 scripts PHP.
+- **Pendências reais:** integração de checkout/provedor e confirmação de pagamento; definição do método de comprovação de renda; módulo e modelo de cursos; interface/modelo completo de questões e criação/gestão de conteúdos institucionais. O acesso institucional permanece bloqueado sem validação e assinatura ativa; nenhum fluxo marca pagamento como confirmado nesta entrega.
 
 ### Validação executada nesta entrega
 
 | Verificação | Resultado |
 | --- | --- |
-| Testes automatizados PHP de ícones, perfil, dashboard, Feed e catálogo | Aprovados |
-| Sintaxe PHP dos arquivos relacionados | Aprovada |
-| Sintaxe JavaScript (`app.js`, `sidebar.js`, `sw.js` e `perfil.js`) | Aprovada |
-| `git diff --check` | Aprovado |
-| Arquivos declarados no precache do service worker | 38 caminhos verificados; nenhum ausente |
-| Respostas repetidas das folhas CSS e do service worker no servidor local | HTTP 200 e conteúdo idêntico nas requisições executadas |
-| Acesso às páginas sem sessão | Início, Biblioteca, Salas, Feed, Questões e Perfil redirecionaram para login; Ranking respondeu HTTP 200 |
+| Testes automatizados PHP de ícones, perfil, sessão/auth version, dashboard, Feed, catálogo, ranking, rate limit, SMTP parser, materiais e permissões/cotas | 11/11 aprovados com PHP 8.0.30 do XAMPP |
+| Testes direcionados de convites, aceite/revogação, Feed, busca e isolamento institucional | 4/4 aprovados com PHP 8.0.30 do XAMPP |
+| Sintaxe PHP de todos os arquivos do repositório | 67 arquivos aprovados com PHP 8.0.30 do XAMPP |
+| Sintaxe JavaScript | 5 arquivos aprovados com `node --check` |
+| `git diff --check` | Aprovado nesta revisão |
+| Migração de permissões no MariaDB descartável | `up`, repetição idempotente, preservação de preço configurado e `down` aprovados |
+| Contraste das combinações principais (`#15173D`/`#F7F2EB`, `#625E72`/`#FFFDFA`, `#2F7138`/`#EAF5EA` e `#4C2365`/`#FFFDFA`) | 15,43:1; 6,15:1; 5,30:1; 11,92:1 — todas acima de 4,5:1 |
+| Arquivos declarados no precache do Service Worker | 38 caminhos existentes verificados |
+| Service Worker no navegador local | Controlando a página; único cache estático ativo observado: `sa-education-static-v8` |
+| Cabeçalho HTTP do `sw.js` | Revalidação configurada após observar ausência de `Cache-Control`; verificação HTTP repetida após a alteração |
+| Login institucional, recuperação de senha e arquivo do Service Worker | HTTP 200 no servidor local |
+| Rotas principais sem sessão (`index`, Biblioteca, Salas, Feed, Questões, Perfil) e ranking público | As seis rotas privadas redirecionaram para `login.php` (HTTP 302); ranking respondeu HTTP 200 |
+| Cookie de sessão local | `Secure=false` em HTTP localhost; `HttpOnly=true` e `SameSite=Lax` |
+| Proteção HTTP de `.env.example`, schema e migração em `/db/` | HTTP 403 nos três recursos consultados |
+| Acesso autenticado às páginas principais, envio real de e-mail SMTP e upload com GD | Pendente; exige configuração/validação manual |
 
-**Limites da validação:** os testes automatizados não substituem a navegação visual autenticada. Nesta etapa não foram concluídos testes de navegador com usuário autenticado, comparação das sete páginas em desktop e celular, atualização real do service worker ativo, fluxo completo de upload após logout/login nem teste em navegadores diferentes. Portanto, a estabilidade visual e a navegação autenticada ainda precisam de validação manual.
+**Limites da validação:** não foram executados testes integrados com MySQL/MariaDB real, entrega SMTP, navegador autenticado ou sessão institucional. O PHP disponível não carrega GD; a estratégia de reprocessamento foi validada por inspeção/lint, mas só pode ser exercitada após habilitar a extensão. Em produção, upload de foto falha de forma explícita sem GD. A navegação autenticada nas sete páginas, opt-in do ranking e persistência real após logout/login ainda precisam de validação manual. A ferramenta de navegador reportou uma largura efetiva de 312 CSS pixels mesmo após solicitar uma janela de 390px; portanto, ela não substitui a validação em dispositivo.
 
 ### Roadmap — próximas atualizações
 
@@ -42,11 +68,11 @@ Os itens abaixo são planejados, não implementados nesta versão. A ordem é in
 2. **Completar a experiência de salas e aprendizagem**
    - Definir os fluxos de criação e participação em salas para estudantes e professores.
    - Evoluir a Biblioteca para seleção e filtragem por matérias e organizar cursos/mentorias, após definir seus modelos e permissões.
-   - Implementar publicação e acompanhamento de aulas, incluindo limites por plano quando as regras comerciais forem aprovadas.
+   - Completar gestão de aulas e cursos Premium depois de implementar o modelo de cursos.
 3. **Expandir perfil, comunidade e atividades**
    - Construir a área de configurações e preferências da conta.
    - Evoluir os formulários e a composição de postagens no Feed.
-   - Ampliar atividades e questões com histórico, acompanhamento e regras de progressão definidos.
+   - Implementar modelos, autoria e acompanhamento de bancos de questões, preservando as cotas mensais já impostas no servidor.
 4. **Adicionar recursos que dependem de regras ou serviços externos**
    - Definir emissão e verificação de diplomas/certificados.
    - Implementar checkout e confirmação de pagamento dos planos com um provedor escolhido.
@@ -77,7 +103,7 @@ A aplicação é um projeto PHP server-side com MySQL/MariaDB, sessões e PDO. O
 
 ### Configuração do banco
 
-O arquivo `conexao.php` tenta criar o banco automaticamente se ele não existir e também carrega o esquema quando a tabela `usuarios` ainda não está presente. As configurações podem ser ajustadas por variáveis de ambiente:
+Em `development`, `conexao.php` pode criar o banco e carregar o schema-base se a tabela `usuarios` ainda não existir, conforme `DB_AUTO_CREATE` e `DB_AUTO_MIGRATE`; isso não executa migrações funcionais. Bancos novos e existentes precisam das migrações CLI, incluindo `db/migrate_permissions.php up`, antes de usar as rotas autenticadas. Em `production`, a aplicação exige configuração explícita e nunca cria banco nem aplica schema em uma requisição. A aplicação lê variáveis do processo PHP/servidor; não carrega `.env` sozinha. Consulte o [README na raiz](../README.md) para os parâmetros e procedimento de migração.
 
 - `DB_HOST`
 - `DB_NAME`
@@ -85,7 +111,7 @@ O arquivo `conexao.php` tenta criar o banco automaticamente se ele não existir 
 - `DB_PASS`
 - `DB_PORT`
 
-Em bancos que já foram inicializados com o histórico demonstrativo do perfil, faça backup e execute `php db/remove_profile_demo_data.php`. O script remove somente tentativas e participações que correspondam exatamente aos fixtures conhecidos; não apaga usuários, salas nem outros registros.
+Os scripts de migração e limpeza do diretório `db/` devem ser executados apenas por CLI. Revise o conteúdo e faça backup antes de usar `db/remove_profile_demo_data.php`, que remove fixtures específicos conhecidos.
 
 ### Catálogo e pesquisa
 
@@ -109,7 +135,7 @@ O Feed usa `publicacoes` para posts e requer `publicacao_curtidas`, `publicacao_
 
 ## PWA
 
-O manifesto usa `./index.php`, escopo relativo e ícones PNG de 192x192 e 512x512. `assets/js/app.js` registra o service worker; `assets/js/sw.js` limita o cache a uma lista explícita de recursos estáticos, não intercepta APIs nem documentos de navegação e prevê uma resposta offline genérica. A versão do cache estático desta entrega é `v7`; a ativação remove caches antigos do mesmo prefixo. As respostas privadas não são armazenadas. A presença dos arquivos e a estabilidade das respostas HTTP foram verificadas, mas instalação, ativação, atualização no navegador e uso offline ainda não foram aprovados por teste manual nesta entrega.
+O manifesto usa `./index.php`, escopo relativo e ícones PNG de 192x192 e 512x512. `assets/js/app.js` registra o service worker; `assets/js/sw.js` limita o cache a uma lista explícita de recursos estáticos, não intercepta APIs nem documentos de navegação e prevê uma resposta offline genérica. A versão do cache estático desta entrega é `v8`; a ativação remove caches antigos do mesmo prefixo. As respostas privadas não são armazenadas. A presença dos arquivos foi verificada, mas instalação, ativação, atualização no navegador e uso offline ainda não foram aprovados por teste manual nesta entrega.
 
 ## Testes executados nesta versão
 
@@ -118,7 +144,7 @@ O manifesto usa `./index.php`, escopo relativo e ícones PNG de 192x192 e 512x51
 - Sintaxe PHP aprovada nos arquivos relacionados à entrega; `node --check` aprovado para `app.js`, `sidebar.js`, `sw.js` e `perfil.js`.
 - A lista do service worker contém 38 recursos e todos existem no projeto.
 - As respostas repetidas de CSS e do service worker testadas no servidor local retornaram HTTP 200 e conteúdo idêntico.
-- Sem sessão autenticada, Início, Biblioteca, Salas, Feed, Questões e Meu perfil redirecionaram para `login.php`; Ranking respondeu HTTP 200. Esses resultados não validam a experiência autenticada.
+- Testes de navegador autenticado, integração SMTP e integração com banco real não executados nesta etapa.
 - `git diff --check` aprovado.
 
 Não foram concluídos nesta entrega os testes visuais autenticados, a navegação completa em desktop/celular, a ativação e atualização do service worker no navegador nem a confirmação de persistência de uma foto após logout/login. Consulte a seção [Roadmap — próximas atualizações](#roadmap--próximas-atualizações) antes de considerar esses fluxos validados.
@@ -151,7 +177,8 @@ No phpMyAdmin, selecione `sa_education`, exporte backup antes de alterações e 
 - Tabelas e rótulos Premium não implementam checkout ou confirmação de pagamento.
 - Upload de foto de perfil está implementado. Upload e armazenamento de outros arquivos ou mídias, incluindo materiais e aulas, ainda não estão disponíveis.
 - Cursos, mentorias, diplomas/certificados e as regras comerciais dos planos ainda precisam de modelos, fluxos e validação antes de serem oferecidos.
-- `db/apply_profile_migration.php` não protege a adição repetida de FKs; inspecione o schema antes de executá-lo em banco existente.
+- Para usar autenticação em banco existente, executar `db/apply_profile_migration.php` e `db/migrate_security_features.php` via CLI após backup; o segundo não remove registros e informa índices ignorados por duplicatas.
+- Reprocessamento de fotos em produção requer GD; habilite e teste a extensão antes de habilitar uploads. No runtime PHP testado, GD não está carregada.
 
 ## Dicas de publicação
 

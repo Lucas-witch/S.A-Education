@@ -1,10 +1,67 @@
 <?php
+function app_environment(): string {
+    if (defined('APP_ENVIRONMENT')) {
+        return strtolower((string) APP_ENVIRONMENT);
+    }
+    $configured = getenv('APP_ENV');
+    if ($configured !== false && trim((string) $configured) !== '') {
+        return strtolower(trim((string) $configured));
+    }
+
+    $httpHost = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
+    $hostWithoutPort = preg_replace('/:\d+$/', '', $httpHost) ?: $httpHost;
+    return in_array($hostWithoutPort, ['localhost', '127.0.0.1', '::1'], true)
+        ? 'development'
+        : 'production';
+}
+
+function app_base_url(): string {
+    $baseUrl = rtrim(trim((string) (getenv('APP_BASE_URL') ?: '')), '/');
+    if ($baseUrl === '' && app_environment() !== 'production') {
+        $requestHost = (string) ($_SERVER['HTTP_HOST'] ?? '');
+        if (preg_match('/^(?:localhost|127\.0\.0\.1)(?::\d{1,5})?$/i', $requestHost) !== 1) {
+            throw new RuntimeException('APP_BASE_URL deve ser configurada fora do acesso local.');
+        }
+
+        $scriptDirectory = dirname(str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? '/')));
+        $pathSegments = array_filter(explode('/', trim($scriptDirectory, '/')), 'strlen');
+        $encodedPath = implode('/', array_map(
+            static fn (string $segment): string => rawurlencode(rawurldecode($segment)),
+            $pathSegments
+        ));
+        $scheme = !empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off'
+            ? 'https'
+            : 'http';
+        $baseUrl = $scheme . '://' . $requestHost . ($encodedPath !== '' ? '/' . $encodedPath : '');
+    }
+
+    $baseUrlParts = $baseUrl !== '' ? parse_url($baseUrl) : false;
+    $allowedSchemes = app_environment() === 'production' ? ['https'] : ['http', 'https'];
+    if (
+        !is_array($baseUrlParts)
+        || !isset($baseUrlParts['scheme'], $baseUrlParts['host'])
+        || !in_array(strtolower((string) $baseUrlParts['scheme']), $allowedSchemes, true)
+        || isset($baseUrlParts['user'])
+        || isset($baseUrlParts['pass'])
+        || isset($baseUrlParts['query'])
+        || isset($baseUrlParts['fragment'])
+        || !filter_var($baseUrl, FILTER_VALIDATE_URL)
+    ) {
+        throw new RuntimeException('APP_BASE_URL ausente ou inválida para o ambiente.');
+    }
+
+    return $baseUrl;
+}
+
 function session_configure_security(): void {
     if (session_status() !== PHP_SESSION_NONE) {
         return;
     }
 
-    $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['HTTP_HOST']) && str_contains(strtolower((string) $_SERVER['HTTP_HOST']), 'localhost'));
+    $https = !empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off';
+    $forceSecureCookie = app_environment() === 'production'
+        || strtolower((string) (getenv('SESSION_COOKIE_SECURE') ?: 'false')) === 'true';
+    $secure = $https || $forceSecureCookie;
 
     session_set_cookie_params([
         'lifetime' => 0,
@@ -51,6 +108,7 @@ function subject_icon_for(string $materia): string {
     ]);
     $icons = [
         'biologia' => 'assets/images/icons/materias/dna.png',
+        'ciencias' => 'assets/images/icons/materias/dna.png',
         'matematica' => 'assets/images/icons/materias/simbolo-de-constante-matematica-pi.png',
         'historia' => 'assets/images/icons/templo-grego.png',
         'geografia' => 'assets/images/icons/materias/geografia.png',
@@ -60,6 +118,7 @@ function subject_icon_for(string $materia): string {
         'sociologia' => 'assets/images/icons/materias/abra-o-livro.png',
         'filosofia' => 'assets/images/icons/materias/filosofia.png',
         'portugues' => 'assets/images/icons/materias/linguistica.png',
+        'literatura' => 'assets/images/icons/materias/abra-o-livro.png',
         'ingles' => 'assets/images/icons/materias/eng.png',
         'lingua inglesa' => 'assets/images/icons/materias/eng.png',
         'espanhol' => 'assets/images/icons/materias/eng.png',

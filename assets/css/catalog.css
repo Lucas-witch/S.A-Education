@@ -23,6 +23,11 @@
   background: var(--surface);
 }
 
+.library-query:focus-within {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px rgba(var(--purple-rgb), 0.2);
+}
+
 .library-query span { color: var(--purple); font-size: 16px; font-weight: 800; }
 .library-query input { width: 100%; min-height: 44px; border: 0; outline: 0; background: transparent; color: var(--text); }
 .library-filters > input {
@@ -128,6 +133,34 @@
 .book-action .btn { min-height: 44px; }
 .library-state { padding: 22px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--muted); }
 
+.library-admin {
+  margin: 0 0 20px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.library-admin h2 { margin: 0 0 6px; font-size: 18px; }
+.library-admin > p { margin: 0 0 16px; color: var(--muted); font-size: 13px; }
+.library-admin-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.library-admin-form label { display: grid; gap: 6px; color: var(--text); font-size: 13px; font-weight: 600; }
+.library-admin-form input,
+.library-admin-form select,
+.library-admin-form textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.library-admin-form textarea { resize: vertical; }
+.library-admin-form button { justify-self: start; }
+.library-loan-entry { margin-bottom: 20px; }
+
 @media (max-width: 900px) {
   .library-wrap { padding: 12px 12px 90px; }
   .library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -137,6 +170,7 @@
 
 @media (max-width: 560px) {
   .library-grid, .library-filters { grid-template-columns: 1fr; }
+  .library-admin-form { grid-template-columns: 1fr; }
   .library-filters > button { grid-column: auto; }
   .book-card { padding: 14px; }
 }

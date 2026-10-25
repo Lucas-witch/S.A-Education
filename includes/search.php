@@ -1,12 +1,35 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/permissions.php';
+
+function biblioteca_has_advanced_metadata(PDO $pdo): bool {
+    $driver = strtolower((string) $pdo->getAttribute(PDO::ATTR_DRIVER_NAME));
+    if ($driver === 'sqlite') {
+        $columns = $pdo->query('PRAGMA table_info(biblioteca)')->fetchAll(PDO::FETCH_COLUMN, 1);
+        $missing = array_diff([
+            'categoria_material', 'palavras_chave', 'area_conhecimento', 'etapa_ensino',
+            'direitos_status', 'direitos_declarados', 'revisao_status', 'storage_key', 'texto_html',
+        ], $columns);
+        return $missing === [];
+    }
+
+    $statement = $pdo->prepare(
+        'SELECT COUNT(*) FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = "biblioteca"
+           AND COLUMN_NAME IN ("categoria_material", "palavras_chave", "area_conhecimento", "etapa_ensino", "direitos_status", "direitos_declarados", "revisao_status", "storage_key", "texto_html")'
+    );
+    $statement->execute();
+    return (int) $statement->fetchColumn() >= 9;
+}
+
 function pesquisar_catalogo(PDO $pdo, int $usuarioId, bool $usuarioPremium, string $q, string $assunto, string $materia, string $tipo, string $acesso, int $page, int $limit): array {
-    $supportedTypes = ['sala', 'aula', 'video_aula', 'material', 'pdf', 'livro', 'apostila', 'artigo', 'redacao', 'post'];
+    $supportedTypes = ['sala', 'aula', 'video_aula', 'material', 'pdf', 'livro', 'apostila', 'artigo', 'redacao', 'post', 'resumo', 'outro'];
     if ($tipo !== '' && !in_array($tipo, $supportedTypes, true)) {
         throw new InvalidArgumentException('Tipo de conteúdo inválido.');
     }
-    if (!in_array($acesso, ['', 'publica', 'privada', 'premium'], true)) {
+    if (!in_array($acesso, ['', 'publica', 'privada', 'instituicao', 'premium'], true)) {
         throw new InvalidArgumentException('Filtro de acesso inválido.');
     }
 
@@ -24,7 +47,7 @@ function pesquisar_catalogo(PDO $pdo, int $usuarioId, bool $usuarioPremium, stri
         'redacao' => ['redacao'],
         'post' => ['post'],
     ];
-    $libraryTypes = ['livro', 'pdf', 'apostila', 'artigo', 'material'];
+    $libraryTypes = ['livro', 'pdf', 'apostila', 'artigo', 'material', 'resumo', 'outro'];
     $includePublications = $tipo === '' || isset($publicationTypes[$tipo]);
     $includeLibrary = ($tipo === '' || in_array($tipo, $libraryTypes, true)) && !in_array($acesso, ['privada', 'premium'], true);
     $parts = [];
@@ -33,9 +56,32 @@ function pesquisar_catalogo(PDO $pdo, int $usuarioId, bool $usuarioPremium, stri
     if ($includeRooms) {
         $roomWhere = [];
         $roomParams = [];
-        if ($usuarioId > 0) {
-            $roomWhere[] = '(s.privacidade = "publica" OR EXISTS (SELECT 1 FROM salas_usuarios su WHERE su.sala_id = s.id AND su.usuario_id = :r_user_id AND su.status = "ativo"))';
-            $roomParams[':r_user_id'] = $usuarioId;
+        if ($usuarioId > 0 && $usuarioId === configured_admin_user_id()) {
+            $roomWhere[] = '1 = 1';
+        } elseif ($usuarioId > 0) {
+            $roomInstitutionScope = institution_content_access_condition(
+                'room_search_institution.id',
+                ':r_institution_owner_id',
+                ':r_institution_member_id'
+            );
+            $roomWhere[] = '(s.privacidade = "publica"
+                OR (s.privacidade = "privada" AND (
+                    s.criador_id = :r_creator_id
+                    OR EXISTS (
+                        SELECT 1 FROM salas_usuarios su
+                        WHERE su.sala_id = s.id AND su.usuario_id = :r_user_id AND su.status = "ativo"
+                    )
+                ))
+                OR (s.privacidade = "instituicao" AND EXISTS (
+                    SELECT 1 FROM instituicoes room_search_institution
+                    WHERE room_search_institution.id = s.institution_id AND ' . $roomInstitutionScope . '
+                )))';
+            $roomParams += [
+                ':r_creator_id' => $usuarioId,
+                ':r_user_id' => $usuarioId,
+                ':r_institution_owner_id' => $usuarioId,
+                ':r_institution_member_id' => $usuarioId,
+            ];
         } else {
             $roomWhere[] = 's.privacidade = "publica"';
         }
@@ -53,7 +99,7 @@ function pesquisar_catalogo(PDO $pdo, int $usuarioId, bool $usuarioPremium, stri
             $roomWhere[] = 'LOWER(COALESCE(s.materia, "")) LIKE :r_materia';
             $roomParams[':r_materia'] = '%' . mb_strtolower($materia) . '%';
         }
-        if ($acesso === 'publica' || $acesso === 'privada') {
+        if (in_array($acesso, ['publica', 'privada', 'instituicao'], true)) {
             $roomWhere[] = 's.privacidade = :r_access';
             $roomParams[':r_access'] = $acesso;
         }
@@ -64,8 +110,23 @@ function pesquisar_catalogo(PDO $pdo, int $usuarioId, bool $usuarioPremium, stri
     if ($includePublications) {
         $publicationWhere = ['p.status = "publicado"'];
         $publicationParams = [];
-        $publicationWhere[] = '(p.visibilidade = "publica" OR (p.visibilidade = "privada" AND p.usuario_id = :p_owner_id) OR (p.visibilidade = "sala" AND EXISTS (SELECT 1 FROM salas_usuarios su WHERE su.sala_id = p.sala_id AND su.usuario_id = :p_room_user_id AND su.status = "ativo")) OR (p.visibilidade = "instituicao" AND EXISTS (SELECT 1 FROM instituicoes i WHERE i.id = p.instituicao_id AND i.usuario_id = :p_institution_owner_id)))';
-        $publicationParams += [':p_owner_id' => $usuarioId, ':p_room_user_id' => $usuarioId, ':p_institution_owner_id' => $usuarioId];
+        $publicationRoomInstitutionScope = institution_content_access_condition(
+            'search_feed_room.institution_id',
+            ':p_room_institution_owner_id',
+            ':p_room_institution_member_id'
+        );
+        $publicationRoomAdmin = configured_admin_user_id() === $usuarioId ? ' OR 1 = 1' : '';
+        $publicationWhere[] = '(p.visibilidade = "publica" OR (p.visibilidade = "privada" AND p.usuario_id = :p_owner_id) OR (p.visibilidade = "sala" AND (EXISTS (SELECT 1 FROM salas_usuarios su INNER JOIN salas search_feed_room ON search_feed_room.id = su.sala_id WHERE su.sala_id = p.sala_id AND su.usuario_id = :p_room_user_id AND su.status = "ativo" AND (search_feed_room.privacidade <> "instituicao" OR ' . $publicationRoomInstitutionScope . '))' . $publicationRoomAdmin . ')) OR (p.visibilidade = "instituicao" AND ' . institution_content_access_condition('p.instituicao_id', ':p_institution_owner_id', ':p_institution_member_id') . ' AND ' . institution_learning_resource_access_condition('publication', 'p.id', 'p.instituicao_id', ':p_resource_owner_id', ':p_resource_member_id') . '))';
+        $publicationParams += [
+            ':p_owner_id' => $usuarioId,
+            ':p_room_user_id' => $usuarioId,
+            ':p_room_institution_owner_id' => $usuarioId,
+            ':p_room_institution_member_id' => $usuarioId,
+            ':p_institution_owner_id' => $usuarioId,
+            ':p_institution_member_id' => $usuarioId,
+            ':p_resource_owner_id' => $usuarioId,
+            ':p_resource_member_id' => $usuarioId,
+        ];
         if (!$usuarioPremium) {
             $publicationWhere[] = 'p.is_premium_only = 0';
         }
@@ -104,33 +165,61 @@ function pesquisar_catalogo(PDO $pdo, int $usuarioId, bool $usuarioPremium, stri
     }
 
     if ($includeLibrary) {
-        $libraryWhere = [
-            'l.status = "ativo"',
-            '(l.instituicao_id IS NULL OR EXISTS (SELECT 1 FROM instituicoes i WHERE i.id = l.instituicao_id AND i.usuario_id = :l_owner_id))',
+        $librarySupportsMetadata = biblioteca_has_advanced_metadata($pdo);
+        $libraryWhere = ['l.status = "ativo"'];
+        if ($librarySupportsMetadata) {
+            $libraryWhere[] = 'l.revisao_status = "approved"';
+            $libraryWhere[] = 'l.direitos_declarados = 1';
+            $libraryWhere[] = 'l.direitos_status <> "unknown"';
+        }
+        $libraryWhere[] = '(l.instituicao_id IS NULL OR (' . institution_content_access_condition('l.instituicao_id', ':l_owner_id', ':l_member_id') . ' AND ' . institution_learning_resource_access_condition('library_material', 'l.id', 'l.instituicao_id', ':l_resource_owner_id', ':l_resource_member_id') . '))';
+        $libraryParams = [
+            ':l_owner_id' => $usuarioId,
+            ':l_member_id' => $usuarioId,
+            ':l_resource_owner_id' => $usuarioId,
+            ':l_resource_member_id' => $usuarioId,
         ];
-        $libraryParams = [':l_owner_id' => $usuarioId];
         if ($q !== '') {
-            $libraryWhere[] = '(LOWER(l.titulo) LIKE :l_q_titulo OR LOWER(COALESCE(l.autor, "")) LIKE :l_q_autor OR LOWER(COALESCE(l.materia, "")) LIKE :l_q_materia OR LOWER(COALESCE(l.descricao, "")) LIKE :l_q_descricao)';
+            $libraryWhere[] = '(LOWER(l.titulo) LIKE :l_q_titulo OR LOWER(COALESCE(l.autor, "")) LIKE :l_q_autor OR LOWER(COALESCE(l.materia, "")) LIKE :l_q_materia OR LOWER(COALESCE(l.descricao, "")) LIKE :l_q_descricao' . ($librarySupportsMetadata ? ' OR LOWER(COALESCE(l.palavras_chave, "")) LIKE :l_q_keywords OR LOWER(COALESCE(l.area_conhecimento, "")) LIKE :l_q_area OR LOWER(COALESCE(l.etapa_ensino, "")) LIKE :l_q_stage OR LOWER(COALESCE(l.categoria_material, "")) LIKE :l_q_category' : '') . ')';
             $like = '%' . mb_strtolower($q) . '%';
             $libraryParams += [':l_q_titulo' => $like, ':l_q_autor' => $like, ':l_q_materia' => $like, ':l_q_descricao' => $like];
+            if ($librarySupportsMetadata) {
+                $libraryParams += [':l_q_keywords' => $like, ':l_q_area' => $like, ':l_q_stage' => $like, ':l_q_category' => $like];
+            }
         }
         if ($assunto !== '') {
-            $libraryWhere[] = '(LOWER(l.tipo) LIKE :l_assunto_tipo OR LOWER(COALESCE(l.materia, "")) LIKE :l_assunto_materia OR LOWER(l.titulo) LIKE :l_assunto_titulo OR LOWER(COALESCE(l.descricao, "")) LIKE :l_assunto_descricao)';
+            $libraryWhere[] = '(LOWER(l.tipo) LIKE :l_assunto_tipo OR LOWER(COALESCE(l.materia, "")) LIKE :l_assunto_materia OR LOWER(l.titulo) LIKE :l_assunto_titulo OR LOWER(COALESCE(l.descricao, "")) LIKE :l_assunto_descricao' . ($librarySupportsMetadata ? ' OR LOWER(COALESCE(l.palavras_chave, "")) LIKE :l_assunto_keywords OR LOWER(COALESCE(l.area_conhecimento, "")) LIKE :l_assunto_area OR LOWER(COALESCE(l.etapa_ensino, "")) LIKE :l_assunto_stage OR LOWER(COALESCE(l.categoria_material, "")) LIKE :l_assunto_category' : '') . ')';
             $like = '%' . mb_strtolower($assunto) . '%';
-            $libraryParams += [':l_assunto_tipo' => $like, ':l_assunto_materia' => $like, ':l_assunto_titulo' => $like, ':l_assunto_descricao' => $like];
+            $libraryParams += [
+                ':l_assunto_tipo' => $like, ':l_assunto_materia' => $like,
+                ':l_assunto_titulo' => $like, ':l_assunto_descricao' => $like,
+            ];
+            if ($librarySupportsMetadata) {
+                $libraryParams += [
+                    ':l_assunto_keywords' => $like, ':l_assunto_area' => $like,
+                    ':l_assunto_stage' => $like, ':l_assunto_category' => $like,
+                ];
+            }
         }
         if ($materia !== '') {
             $libraryWhere[] = 'LOWER(COALESCE(l.materia, "")) LIKE :l_materia';
             $libraryParams[':l_materia'] = '%' . mb_strtolower($materia) . '%';
         }
         if (in_array($tipo, $libraryTypes, true)) {
-            $libraryWhere[] = 'l.tipo = :l_type';
-            $libraryParams[':l_type'] = $tipo;
+            if ($librarySupportsMetadata && in_array($tipo, ['resumo', 'outro'], true)) {
+                $libraryWhere[] = 'LOWER(COALESCE(l.categoria_material, "")) = :l_category';
+                $libraryParams[':l_category'] = $tipo;
+            } else {
+                $libraryWhere[] = 'l.tipo = :l_type';
+                $libraryParams[':l_type'] = $tipo;
+            }
         }
         if ($acesso === 'publica') {
             $libraryWhere[] = 'l.instituicao_id IS NULL';
         }
-        $parts[] = 'SELECT "biblioteca" AS source_type, l.tipo AS content_type, l.id, l.titulo AS title, COALESCE(l.descricao, "") AS description, COALESCE(l.autor, "") AS responsible, l.tipo AS category, COALESCE(l.materia, "") AS subject, CASE WHEN l.instituicao_id IS NULL THEN "publica" ELSE "instituicao" END AS access, 0 AS premium_only FROM biblioteca l WHERE ' . implode(' AND ', $libraryWhere);
+        $contentTypeExpression = $librarySupportsMetadata ? 'COALESCE(NULLIF(l.categoria_material, ""), l.tipo)' : 'l.tipo';
+        $categoryExpression = $librarySupportsMetadata ? 'COALESCE(l.categoria_material, l.tipo)' : 'l.tipo';
+        $parts[] = 'SELECT "biblioteca" AS source_type, ' . $contentTypeExpression . ' AS content_type, l.id, l.titulo AS title, COALESCE(l.descricao, "") AS description, COALESCE(l.autor, "") AS responsible, ' . $categoryExpression . ' AS category, COALESCE(l.materia, "") AS subject, CASE WHEN l.instituicao_id IS NULL THEN "publica" ELSE "instituicao" END AS access, 0 AS premium_only FROM biblioteca l WHERE ' . implode(' AND ', $libraryWhere);
         $params += $libraryParams;
     }
 
@@ -161,6 +250,8 @@ function pesquisar_catalogo(PDO $pdo, int $usuarioId, bool $usuarioPremium, stri
         'redacao' => 'Redação',
         'pdf' => 'PDF',
         'livro' => 'Livro',
+        'resumo' => 'Resumo',
+        'outro' => 'Material',
         'post' => 'Publicação',
         'apostila' => 'Apostila',
         'material' => 'Material',
@@ -197,7 +288,7 @@ function pesquisar_catalogo(PDO $pdo, int $usuarioId, bool $usuarioPremium, stri
 }
 
 function buscar_materiais_biblioteca(PDO $pdo, int $usuarioId, bool $usuarioPremium, string $q, string $materia, string $tipo, int $limit = 80): array {
-    $supportedTypes = ['', 'livro', 'apostila', 'pdf', 'artigo', 'video_aula'];
+    $supportedTypes = ['', 'livro', 'apostila', 'pdf', 'artigo', 'video_aula', 'resumo', 'outro'];
     if (!in_array($tipo, $supportedTypes, true)) {
         throw new InvalidArgumentException('Tipo de material inválido.');
     }
@@ -205,25 +296,52 @@ function buscar_materiais_biblioteca(PDO $pdo, int $usuarioId, bool $usuarioPrem
     $parts = [];
     $params = [];
     if ($tipo !== 'video_aula') {
-        $libraryWhere = [
-            'l.status = "ativo"',
-            '(l.instituicao_id IS NULL OR EXISTS (SELECT 1 FROM instituicoes i WHERE i.id = l.instituicao_id AND i.usuario_id = :library_owner_id))',
+        $librarySupportsMetadata = biblioteca_has_advanced_metadata($pdo);
+        $libraryWhere = ['l.status = "ativo"'];
+        if ($librarySupportsMetadata) {
+            $libraryWhere[] = 'l.revisao_status = "approved"';
+            $libraryWhere[] = 'l.direitos_declarados = 1';
+            $libraryWhere[] = 'l.direitos_status <> "unknown"';
+        }
+        $libraryWhere[] = '(l.instituicao_id IS NULL OR (' . institution_content_access_condition('l.instituicao_id', ':library_owner_id', ':library_member_id') . ' AND ' . institution_learning_resource_access_condition('library_material', 'l.id', 'l.instituicao_id', ':library_resource_owner_id', ':library_resource_member_id') . '))';
+        $libraryParams = [
+            ':library_owner_id' => $usuarioId,
+            ':library_member_id' => $usuarioId,
+            ':library_resource_owner_id' => $usuarioId,
+            ':library_resource_member_id' => $usuarioId,
         ];
-        $libraryParams = [':library_owner_id' => $usuarioId];
         if ($q !== '') {
-            $libraryWhere[] = '(LOWER(l.titulo) LIKE :library_q_title OR LOWER(COALESCE(l.autor, "")) LIKE :library_q_author OR LOWER(COALESCE(l.materia, "")) LIKE :library_q_subject OR LOWER(COALESCE(l.descricao, "")) LIKE :library_q_description)';
+            $qCondition = '(LOWER(l.titulo) LIKE :library_q_title OR LOWER(COALESCE(l.autor, "")) LIKE :library_q_author OR LOWER(COALESCE(l.materia, "")) LIKE :library_q_subject OR LOWER(COALESCE(l.descricao, "")) LIKE :library_q_description';
+            if ($librarySupportsMetadata) {
+                $qCondition .= ' OR LOWER(COALESCE(l.palavras_chave, "")) LIKE :library_q_keywords OR LOWER(COALESCE(l.area_conhecimento, "")) LIKE :library_q_area OR LOWER(COALESCE(l.etapa_ensino, "")) LIKE :library_q_stage OR LOWER(COALESCE(l.categoria_material, "")) LIKE :library_q_category';
+            }
+            $qCondition .= ')';
+            $libraryWhere[] = $qCondition;
             $like = '%' . mb_strtolower($q) . '%';
-            $libraryParams += [':library_q_title' => $like, ':library_q_author' => $like, ':library_q_subject' => $like, ':library_q_description' => $like];
+            $libraryParams += [
+                ':library_q_title' => $like, ':library_q_author' => $like,
+                ':library_q_subject' => $like, ':library_q_description' => $like,
+            ];
+            if ($librarySupportsMetadata) {
+                $libraryParams += [':library_q_keywords' => $like, ':library_q_area' => $like, ':library_q_stage' => $like, ':library_q_category' => $like];
+            }
         }
         if ($materia !== '') {
             $libraryWhere[] = 'LOWER(COALESCE(l.materia, "")) LIKE :library_subject';
             $libraryParams[':library_subject'] = '%' . mb_strtolower($materia) . '%';
         }
         if ($tipo !== '') {
-            $libraryWhere[] = 'l.tipo = :library_type';
-            $libraryParams[':library_type'] = $tipo;
+            if ($librarySupportsMetadata && in_array($tipo, ['resumo', 'outro'], true)) {
+                $libraryWhere[] = 'LOWER(COALESCE(l.categoria_material, "")) = :library_category';
+                $libraryParams[':library_category'] = $tipo;
+            } else {
+                $libraryWhere[] = 'l.tipo = :library_type';
+                $libraryParams[':library_type'] = $tipo;
+            }
         }
-        $parts[] = 'SELECT "biblioteca" AS source_type, l.id, l.titulo AS title, COALESCE(l.autor, "") AS responsible, l.tipo AS content_type, COALESCE(l.materia, "") AS subject, COALESCE(l.descricao, "") AS description, COALESCE(l.capa_url, "") AS cover_url, COALESCE(l.arquivo_url, "") AS resource_url, l.disponibilidade AS availability, CASE WHEN l.instituicao_id IS NULL THEN "publica" ELSE "instituicao" END AS access, 0 AS premium_only FROM biblioteca l WHERE ' . implode(' AND ', $libraryWhere);
+        $contentTypeSelect = $librarySupportsMetadata ? 'COALESCE(NULLIF(l.categoria_material, ""), l.tipo)' : 'l.tipo';
+        $resourceUrlSelect = $librarySupportsMetadata ? 'CASE WHEN l.storage_key IS NOT NULL OR COALESCE(l.texto_html, "") <> "" THEN CONCAT("biblioteca-leitor.php?id=", l.id) ELSE "" END' : 'COALESCE(l.arquivo_url, "")';
+        $parts[] = 'SELECT "biblioteca" AS source_type, l.id, l.titulo AS title, COALESCE(l.autor, "") AS responsible, ' . $contentTypeSelect . ' AS content_type, COALESCE(l.materia, "") AS subject, COALESCE(l.descricao, "") AS description, COALESCE(l.capa_url, "") AS cover_url, ' . $resourceUrlSelect . ' AS resource_url, l.disponibilidade AS availability, CASE WHEN l.instituicao_id IS NULL THEN "publica" ELSE "instituicao" END AS access, 0 AS premium_only FROM biblioteca l WHERE ' . implode(' AND ', $libraryWhere);
         $params += $libraryParams;
     }
 
@@ -231,12 +349,15 @@ function buscar_materiais_biblioteca(PDO $pdo, int $usuarioId, bool $usuarioPrem
         $publicationWhere = [
             'p.status = "publicado"',
             'p.tipo IN ("artigo", "pdf", "livro", "material", "video_aula")',
-            '(p.visibilidade = "publica" OR (p.visibilidade = "privada" AND p.usuario_id = :publication_owner_id) OR (p.visibilidade = "sala" AND EXISTS (SELECT 1 FROM salas_usuarios su WHERE su.sala_id = p.sala_id AND su.usuario_id = :publication_room_user_id AND su.status = "ativo")) OR (p.visibilidade = "instituicao" AND EXISTS (SELECT 1 FROM instituicoes i WHERE i.id = p.instituicao_id AND i.usuario_id = :publication_institution_owner_id)))',
+            '(p.visibilidade = "publica" OR (p.visibilidade = "privada" AND p.usuario_id = :publication_owner_id) OR (p.visibilidade = "sala" AND EXISTS (SELECT 1 FROM salas_usuarios su WHERE su.sala_id = p.sala_id AND su.usuario_id = :publication_room_user_id AND su.status = "ativo")) OR (p.visibilidade = "instituicao" AND ' . institution_content_access_condition('p.instituicao_id', ':publication_institution_owner_id', ':publication_institution_member_id') . ' AND ' . institution_learning_resource_access_condition('publication', 'p.id', 'p.instituicao_id', ':publication_resource_owner_id', ':publication_resource_member_id') . '))',
         ];
         $publicationParams = [
             ':publication_owner_id' => $usuarioId,
             ':publication_room_user_id' => $usuarioId,
             ':publication_institution_owner_id' => $usuarioId,
+            ':publication_institution_member_id' => $usuarioId,
+            ':publication_resource_owner_id' => $usuarioId,
+            ':publication_resource_member_id' => $usuarioId,
         ];
         if (!$usuarioPremium) {
             $publicationWhere[] = 'p.is_premium_only = 0';

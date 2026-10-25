@@ -9,6 +9,10 @@ if (isset($_SESSION['usuario_id'])) {
     header('Location: perfil-dashboard.php');
     exit;
 }
+if (isset($_SESSION['instituicao_usuario_id'])) {
+    header('Location: instituicao-dashboard.php');
+    exit;
+}
 
 $erro = $_SESSION['erro_login'] ?? '';
 $sucesso = $_SESSION['sucesso'] ?? '';
@@ -54,7 +58,6 @@ require_once __DIR__ . '/includes/helpers.php';
             </label>
 
             <div class="form-row">
-                <label class="check"><input type="checkbox" name="lembrar"> Lembrar de mim?</label>
                 <a href="redefinir-senha.php" class="small-link">Esqueci minha senha</a>
             </div>
 
@@ -62,6 +65,7 @@ require_once __DIR__ . '/includes/helpers.php';
         </form>
 
         <p class="switch">Ainda não possui uma conta? <a href="cadastro.php">Criar conta</a></p>
+        <p class="switch">Acesso para instituições? <a href="login-instituicao.php">Entrar como instituição</a></p>
     </section>
 </main>
 <script src="assets/js/app.js"></script>

@@ -7,7 +7,18 @@ if (session_status() === PHP_SESSION_NONE) {
 require __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/conexao.php';
 require_once __DIR__ . '/includes/room_search.php';
-require_auth();
+require_once __DIR__ . '/includes/room_access.php';
+
+$isInstitutionSession = isset($_SESSION['instituicao_usuario_id']);
+if ($isInstitutionSession) {
+  require_institution_auth();
+  $usuarioId = (int) $_SESSION['instituicao_usuario_id'];
+} else {
+  require_auth();
+  $usuarioId = (int) $_SESSION['usuario_id'];
+}
+$permissions = resolve_account_permissions($pdo, $usuarioId);
+$canCreateRooms = room_creation_is_allowed($permissions);
 
 $readFilter = static function (string $name, int $maxLength): string {
   $value = $_GET[$name] ?? '';
@@ -24,7 +35,7 @@ try {
   $assuntoFiltro = $readFilter('assunto', 80);
   $materiaFiltro = $readFilter('materia', 80);
   $acessoFiltro = strtolower($readFilter('acesso', 12));
-  $salas = buscar_salas($pdo, (int) $_SESSION['usuario_id'], $pesquisa, $assuntoFiltro, $materiaFiltro, $acessoFiltro);
+  $salas = buscar_salas($pdo, $usuarioId, $pesquisa, $assuntoFiltro, $materiaFiltro, $acessoFiltro);
 } catch (InvalidArgumentException $exception) {
   http_response_code(400);
   $queryError = 'Os filtros enviados são inválidos. Ajuste os campos e tente novamente.';
@@ -36,22 +47,13 @@ try {
   $pesquisa = $assuntoFiltro = $materiaFiltro = $acessoFiltro = '';
 }
 
-$perfilAtual = current_user_perfil();
+$perfilAtual = (string) ($permissions['profile'] ?? '');
 $perfilTitulo = [
     'estudante' => 'Salas para aprender',
     'professor' => 'Minhas salas e acompanhamento',
   'instituicao' => 'Salas disponíveis',
 ][$perfilAtual] ?? 'Salas';
 
-$acaoTexto = [
-    'estudante' => 'Entrar em sala',
-    'professor' => 'Criar sala',
-][$perfilAtual] ?? 'Entrar em sala';
-
-$acaoLink = [
-    'estudante' => 'entrar-sala.php',
-    'professor' => 'criar-sala.php',
-][$perfilAtual] ?? 'entrar-sala.php';
 ?>
 <!doctype html>
 <html lang="pt-BR">
@@ -70,8 +72,10 @@ $acaoLink = [
         <h1>Salas</h1>
         <p><?= htmlspecialchars($perfilTitulo) ?></p>
       </div>
-      <?php if (in_array($perfilAtual, ['estudante', 'professor'], true)): ?>
-        <a href="<?= htmlspecialchars($acaoLink, ENT_QUOTES, 'UTF-8') ?>" class="btn btn-primary"><?= htmlspecialchars($acaoTexto, ENT_QUOTES, 'UTF-8') ?></a>
+      <?php if ($canCreateRooms): ?>
+        <a href="criar-sala.php" class="btn btn-primary">Criar sala ou comunidade</a>
+      <?php elseif (in_array($perfilAtual, ['estudante', 'professor'], true)): ?>
+        <a href="entrar-sala.php" class="btn btn-primary">Entrar em sala</a>
       <?php endif; ?>
     </header>
 
@@ -85,6 +89,7 @@ $acaoLink = [
           <option value="">Acesso</option>
           <option value="publica" <?= $acessoFiltro === 'publica' ? 'selected' : '' ?>>Pública</option>
           <option value="privada" <?= $acessoFiltro === 'privada' ? 'selected' : '' ?>>Privada</option>
+          <option value="instituicao" <?= $acessoFiltro === 'instituicao' ? 'selected' : '' ?>>Institucional</option>
         </select>
         <button type="submit" class="btn btn-primary" data-search-submit>Buscar</button>
       </div>
@@ -111,6 +116,9 @@ $acaoLink = [
             <div>
               <h3><?= esc((string) ($s['nome'] ?? 'Sala')) ?></h3>
               <p><?= esc((string) ($s['prof'] ?? 'Responsável não informado')) ?> · <?= intval($s['alunos'] ?? 0) ?> participantes</p>
+              <?php if (trim((string) ($s['categoria'] ?? '')) !== ''): ?>
+                <p><?= esc((string) $s['categoria']) ?><?= trim((string) ($s['area_conhecimento'] ?? '')) !== '' ? ' · ' . esc((string) $s['area_conhecimento']) : '' ?></p>
+              <?php endif; ?>
               <small class="room-badge room-badge-<?= $roomAccess === 'privada' ? 'private' : 'public' ?>"><?= $roomAccess === 'privada' ? 'Privada' : 'Pública' ?></small>
             </div>
             <span class="arrow">›</span>

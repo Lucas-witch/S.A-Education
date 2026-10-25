@@ -4,8 +4,7 @@
 require_once __DIR__ . '/../conexao.php';
 
 $plans = [
-    ['nome' => 'free', 'preco' => 0.00, 'descricao' => 'Plano gratuito', 'pode_postar_aulas_ilimitadas' => false, 'pode_criar_salas' => false, 'pode_criar_comunidades_privadas' => false, 'pode_postar_artigos' => true, 'limite_video_aula_free' => 1],
-    ['nome' => 'premium', 'preco' => 29.90, 'descricao' => 'Plano premium', 'pode_postar_aulas_ilimitadas' => true, 'pode_criar_salas' => true, 'pode_criar_comunidades_privadas' => true, 'pode_postar_artigos' => true, 'limite_video_aula_free' => null],
+    ['nome' => 'free', 'preco' => 0.00, 'descricao' => 'Plano legado. Consulte o catálogo product_plans.', 'pode_postar_aulas_ilimitadas' => false, 'pode_criar_salas' => false, 'pode_criar_comunidades_privadas' => false, 'pode_postar_artigos' => false, 'limite_video_aula_free' => null],
 ];
 
 $users = [];

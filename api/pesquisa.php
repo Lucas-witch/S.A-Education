@@ -8,6 +8,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 send_private_no_store_headers();
+require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../conexao.php';
 require_once __DIR__ . '/../includes/search.php';
 
@@ -43,7 +44,15 @@ try {
 
     $usuarioAtualId = filter_var($_SESSION['usuario_id'] ?? null, FILTER_VALIDATE_INT);
     $usuarioAtualId = $usuarioAtualId === false || $usuarioAtualId <= 0 ? 0 : $usuarioAtualId;
-    $usuarioPremium = $usuarioAtualId > 0 && !empty($_SESSION['usuario_premium_ativo']);
+    if ($usuarioAtualId > 0 && !authenticated_session_is_current($pdo)) {
+        invalidate_current_session();
+        $usuarioAtualId = 0;
+    }
+    if ($usuarioAtualId > 0) {
+        require_once __DIR__ . '/../includes/permissions.php';
+        refresh_user_permission_session($pdo, $usuarioAtualId);
+    }
+    $usuarioPremium = $usuarioAtualId > 0 && usuario_tem_acesso_premium();
 
     $resultado = pesquisar_catalogo($pdo, $usuarioAtualId, $usuarioPremium, $q, $assunto, $materia, $tipo, $acesso, $page, $limit);
     echo json_encode($resultado, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

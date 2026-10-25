@@ -99,8 +99,7 @@ CREATE TABLE `planos` (
 --
 
 INSERT INTO `planos` (`id`, `nome`, `preco`, `descricao`, `pode_postar_aulas_ilimitadas`, `pode_criar_salas`, `pode_criar_comunidades_privadas`, `pode_postar_artigos`, `limite_video_aula_free`, `criado_em`) VALUES
-(1, 'free', 0.00, 'Conta gratuita para leitura e publicações limitadas.', 0, 0, 0, 1, 1, '2026-09-28 19:16:52'),
-(2, 'premium', 29.90, 'Conta premium com publicação ilimitada, salas e comunidades privadas.', 1, 1, 1, 1, NULL, '2026-09-28 19:16:52');
+(1, 'free', 0.00, 'Plano legado. Consulte o catálogo product_plans.', 0, 0, 0, 0, NULL, '2026-09-28 19:16:52');
 
 -- --------------------------------------------------------
 
@@ -121,6 +120,15 @@ CREATE TABLE `publicacoes` (
   `arquivo_url` varchar(255) DEFAULT NULL,
   `video_url` varchar(255) DEFAULT NULL,
   `categoria` varchar(80) DEFAULT NULL,
+  `education_stage` varchar(100) DEFAULT NULL,
+  `knowledge_area` varchar(120) DEFAULT NULL,
+  `subject` varchar(120) DEFAULT NULL,
+  `topic` varchar(180) DEFAULT NULL,
+  `subtopic` varchar(180) DEFAULT NULL,
+  `course_title` varchar(180) DEFAULT NULL,
+  `complementary_materials` varchar(1000) DEFAULT NULL,
+  `related_exercises` varchar(1000) DEFAULT NULL,
+  `captions_url` varchar(1000) DEFAULT NULL,
   `visibilidade` enum('publica','privada','sala','instituicao') NOT NULL DEFAULT 'publica',
   `status` enum('rascunho','publicado','arquivado') NOT NULL DEFAULT 'publicado',
   `is_premium_only` tinyint(1) NOT NULL DEFAULT 0,
@@ -229,6 +237,8 @@ CREATE TABLE `usuarios` (
   `oauth_provider` varchar(50) DEFAULT NULL,
   `oauth_id` varchar(255) DEFAULT NULL,
   `premium_ativo` tinyint(1) NOT NULL DEFAULT 0,
+  `auth_version` int(10) unsigned NOT NULL DEFAULT 0,
+  `ranking_publico` tinyint(1) NOT NULL DEFAULT 0,
   `criado_em` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -292,13 +302,14 @@ ALTER TABLE `publicacoes`
 --
 ALTER TABLE `ranking`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `fk_ranking_usuario` (`usuario_id`);
+  ADD UNIQUE KEY `uniq_ranking_usuario` (`usuario_id`);
 
 --
 -- Índices de tabela `salas`
 --
 ALTER TABLE `salas`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uniq_salas_codigo` (`codigo`);
 
 -- Índices de tabela `usuarios`
 --
@@ -343,6 +354,28 @@ CREATE TABLE `publicacao_comentarios` (
   CONSTRAINT `fk_publicacao_comentarios_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+CREATE TABLE `password_reset_tokens` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `token_hash` char(64) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `used_at` datetime DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_password_reset_token_hash` (`token_hash`),
+  KEY `idx_password_reset_user` (`user_id`, `expires_at`),
+  CONSTRAINT `fk_password_reset_user` FOREIGN KEY (`user_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `auth_rate_limits` (
+  `bucket_key` char(64) NOT NULL,
+  `attempts` int(10) unsigned NOT NULL DEFAULT 0,
+  `window_started_at` datetime NOT NULL,
+  `blocked_until` datetime DEFAULT NULL,
+  PRIMARY KEY (`bucket_key`),
+  KEY `idx_auth_rate_limit_expiry` (`blocked_until`, `window_started_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 --
 -- AUTO_INCREMENT para tabelas despejadas
 --
@@ -369,7 +402,7 @@ ALTER TABLE `instituicoes`
 -- AUTO_INCREMENT de tabela `planos`
 --
 ALTER TABLE `planos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT de tabela `publicacoes`

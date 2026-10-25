@@ -1,15 +1,7 @@
-OAuth placeholders
+# Integração OAuth — não disponível
 
-Esta pasta contém arquivos de referência para integrar OAuth (Google / Microsoft).
+Os arquivos `google_redirect.php` e `google_callback.php` são placeholders que respondem com HTTP 501. Eles não implementam autenticação OAuth e não devem ser apresentados como um método de login funcional.
 
-Para ativar OAuth:
-1. Registre seu app no Google Console / Azure Portal.
-2. Defina os callbacks para: `https://your-domain.com/oauth/google_callback.php` (substitua domínio).
-3. Preencha `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET` em `.env`.
-4. Implemente o fluxo usando as bibliotecas oficiais ou endpoints OAuth2.
+Para uma implementação futura, será necessário definir o provedor, cadastrar URLs de callback, configurar credenciais somente no ambiente do servidor e implementar validação de `state`, troca de código, validação de identidade e associação segura de contas. O projeto não carrega arquivos `.env` automaticamente.
 
-Arquivos de exemplo (não implementam fluxo completo):
-- `google_redirect.php` — redireciona para a tela de autorização.
-- `google_callback.php` — ponto de entrada para processar o callback.
-
-Por segurança, não coloque credenciais diretamente no repositório.
+Até que esses passos sejam concluídos e testados, use os fluxos de autenticação disponíveis na aplicação.

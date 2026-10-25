@@ -61,6 +61,11 @@ body.reference-shell .global-search {
   background: var(--surface);
 }
 
+body.reference-shell .global-search:focus-within {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px rgba(var(--purple-rgb), 0.2);
+}
+
 body.reference-shell .global-search span {
   color: var(--purple);
   font-size: 15px;

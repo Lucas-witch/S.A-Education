@@ -25,6 +25,7 @@ assert_profile(
     'Nome acima do limite do banco deve ser rejeitado.'
 );
 
+putenv('APP_ADMIN_USER_ID=71');
 set_authenticated_session([
     'id' => 71,
     'nome_completo' => 'João da Silva',
@@ -33,7 +34,22 @@ set_authenticated_session([
     'perfil' => 'estudante',
     'perfil_imagem' => 'uploads/perfil/avatar.jpg',
 ]);
+assert_profile(is_admin_user(), 'Somente o ID explicitamente configurado deve receber o perfil administrativo.');
+assert_profile($_SESSION['usuario_is_admin'] === true, 'A conta administradora deve ser marcada na sessão autenticada.');
+assert_profile($_SESSION['usuario_premium_ativo'] === true, 'A conta administradora deve receber acesso Premium.');
+assert_profile($_SESSION['usuario_pode_criar_salas'] === true, 'A conta administradora deve receber criação de salas.');
+assert_profile($_SESSION['usuario_pode_criar_comunidades_privadas'] === true, 'A conta administradora deve receber comunidades privadas.');
+assert_profile($_SESSION['usuario_pode_postar_aulas_ilimitadas'] === true, 'A conta administradora deve receber publicação ilimitada de aulas.');
+assert_profile($_SESSION['usuario_pode_postar_artigos'] === true, 'A conta administradora deve receber publicação de artigos.');
+assert_profile(usuario_tem_acesso_premium(), 'A conta administradora deve resolver como Premium.');
+assert_profile(perfil_label('professor') === 'Administrador', 'A conta configurada deve ser identificada como administradora.');
+$adminSessionId = $_SESSION['usuario_id'];
+$_SESSION['usuario_id'] = 72;
+$_SESSION['usuario_is_admin'] = true;
+assert_profile(!is_admin_user(), 'Uma marca de sessão não pode conceder administração a outro ID.');
+$_SESSION['usuario_id'] = $adminSessionId;
 assert_profile($_SESSION['perfil_imagem'] === 'uploads/perfil/avatar.jpg', 'A foto canônica deve ser definida no login.');
+assert_profile($_SESSION['usuario_auth_version'] === 0, 'A versão da sessão deve ser definida para invalidar sessões antigas após redefinição de senha.');
 assert_profile($_SESSION['usuario_foto'] === $_SESSION['perfil_imagem'], 'O alias usuario_foto deve acompanhar a fonte canônica.');
 assert_profile($_SESSION['usuario_imagem'] === $_SESSION['perfil_imagem'], 'O alias usuario_imagem deve acompanhar a fonte canônica.');
 
@@ -59,5 +75,30 @@ try {
     throw new RuntimeException('A atualização de uma sessão para outro ID deveria falhar.');
 } catch (InvalidArgumentException) {
 }
+
+try {
+    set_authenticated_session([
+        'id' => 73,
+        'nome_completo' => 'Conta institucional',
+        'email' => 'instituicao@example.com',
+        'username' => 'instituicao',
+        'perfil' => 'instituicao',
+    ]);
+    throw new RuntimeException('O login comum não deve aceitar contas institucionais.');
+} catch (InvalidArgumentException) {
+}
+
+set_institution_authenticated_session([
+    'id' => 73,
+    'nome_completo' => 'Conta institucional',
+    'nome_instituicao' => 'Escola de Teste',
+    'email' => 'instituicao@example.com',
+    'perfil' => 'instituicao',
+    'auth_version' => 2,
+]);
+putenv('APP_ADMIN_USER_ID');
+assert_profile($_SESSION['instituicao_usuario_id'] === 73, 'A sessão institucional deve usar um identificador separado.');
+assert_profile(!isset($_SESSION['usuario_id']), 'A sessão institucional não deve acessar o contexto de estudante/professor.');
+assert_profile($_SESSION['instituicao_auth_version'] === 2, 'A sessão institucional deve acompanhar a versão de autenticação.');
 
 echo "OK: validação de campos, aliases de foto e isolamento do ID da sessão.\n";

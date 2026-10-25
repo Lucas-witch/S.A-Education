@@ -96,6 +96,55 @@
 .feed-form-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 0.7fr); gap: 12px; }
 .feed-field { display: grid; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 600; }
 .feed-composer textarea { min-height: 96px; resize: vertical; }
+.feed-composer input[type="file"] { min-height: 44px; padding: 8px; }
+.feed-composer input[type="file"]::file-selector-button {
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-soft);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.feed-composer small { color: var(--muted); font-size: 12px; font-weight: 400; line-height: 1.5; }
+.feed-editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.feed-editor-toolbar button,
+.feed-editor-toolbar select {
+  min-height: 36px;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.feed-editor-toolbar button:hover,
+.feed-editor-toolbar select:focus-visible { border-color: var(--purple); color: var(--purple); }
+.feed-rich-editor {
+  min-height: 180px;
+  max-height: 620px;
+  overflow-y: auto;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.feed-rich-editor:focus-visible { border-color: var(--purple); outline: 3px solid rgba(var(--purple-rgb), .2); outline-offset: 1px; }
+.feed-rich-editor:empty::before { color: var(--muted); content: "Escreva uma publicação, artigo ou explicação..."; pointer-events: none; }
+.feed-rich-editor h2,
+.feed-rich-editor h3 { margin: 1em 0 .45em; line-height: 1.3; }
+.feed-rich-editor blockquote { margin: 1em 0; padding-left: 1em; border-left: 3px solid var(--purple); color: var(--muted); }
+.feed-rich-editor ul,
+.feed-rich-editor ol { padding-left: 1.6em; }
+.feed-rich-editor a { color: var(--purple); }
 .feed-composer [hidden], .feed-comments[hidden] { display: none !important; }
 .feed-form-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
 .feed-form-status, .feed-status { min-height: 22px; color: var(--muted); font-size: 13px; }
@@ -113,12 +162,27 @@
 .feed-card-type { display: inline-flex; margin: 14px 0 7px; color: var(--purple); font-size: 11px; font-weight: 800; text-transform: uppercase; }
 .feed-card h2 { margin: 0 0 8px; font-size: 20px; line-height: 1.3; }
 .feed-card-copy { margin: 0; color: var(--text); font-size: 14px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+.feed-card-rich { white-space: normal; }
+.feed-card-rich p { margin: .45em 0; }
+.feed-card-rich img { max-width: 100%; height: auto; }
+.feed-card-rich table { width: 100%; border-collapse: collapse; }
+.feed-card-rich th,
+.feed-card-rich td { padding: 7px; border: 1px solid var(--border); text-align: left; }
 .feed-card-category { display: inline-flex; margin-top: 12px; padding: 5px 9px; border-radius: 999px; background: var(--purple-soft); color: var(--purple); font-size: 12px; }
 .feed-card-resource { margin-top: 14px; }
+.feed-card-media { display: block; max-width: 100%; max-height: min(70vh, 720px); margin: 14px auto 0; border-radius: 12px; background: #111; }
+.feed-card-image { width: auto; height: auto; object-fit: contain; }
 .feed-card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding-top: 13px; border-top: 1px solid var(--border); }
 .feed-action { min-height: 42px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--purple); font-size: 13px; font-weight: 700; }
 .feed-action[aria-pressed="true"] { background: var(--purple-soft); border-color: var(--purple); }
 .feed-comments { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.feed-report { margin-top: 14px; }
+.feed-report summary { cursor: pointer; color: var(--purple); font-weight: 700; }
+.feed-report form { display: grid; gap: 10px; margin-top: 10px; }
+.feed-report label { display: grid; gap: 5px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.feed-report select,
+.feed-report textarea { width: 100%; border: 1px solid var(--border); border-radius: 9px; padding: 10px; background: var(--surface); color: var(--text); }
+.feed-report textarea { min-height: 70px; resize: vertical; }
 .feed-comment-list { display: grid; gap: 10px; padding: 0; margin: 0 0 12px; list-style: none; }
 .feed-comment { padding: 10px 12px; border-radius: 10px; background: var(--surface-soft); }
 .feed-comment-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
@@ -148,4 +212,18 @@
   .feed-card-head { flex-direction: column; }
   .feed-card-menu { justify-content: flex-start; }
   .feed-action, .feed-comment-form button { min-height: 44px; }
+  .feed-rich-editor { min-height: 150px; }
+  .feed-editor-toolbar button,
+  .feed-editor-toolbar select { min-height: 40px; }
+}
+.feed-official-badge {
+  display: inline-block;
+  margin-inline-start: 0.35rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: #71308B;
+  color: #fff;
+  font-size: 0.72em;
+  font-weight: 700;
+  vertical-align: middle;
 }

@@ -5,6 +5,7 @@
 if (!isset($pdo) || !($pdo instanceof PDO)) {
     require_once __DIR__ . '/../conexao.php';
 }
+require_once __DIR__ . '/ranking.php';
 
 $salas = [];
 $recentes = [];
@@ -174,9 +175,9 @@ if (isset($pdo) && $pdo instanceof PDO) {
     }
 
     try {
-        $stmt = $pdo->query('SELECT u.nome_completo AS nome, COALESCE(r.pontos, 0) AS pontos, ROW_NUMBER() OVER (ORDER BY COALESCE(r.pontos, 0) DESC) AS pos FROM usuarios u LEFT JOIN ranking r ON u.id = r.usuario_id ORDER BY pontos DESC LIMIT 10');
-        $ranking = $stmt->fetchAll();
+        $ranking = obter_ranking_publico($pdo, 10);
     } catch (PDOException $e) {
+        error_log('[S.A Education][public_ranking][PDO] ' . $e->getMessage());
         $ranking = [];
     }
 
@@ -216,9 +217,6 @@ function dashboard_pode_exibir_grafico(array $dados): bool {
         && (int) ($dados['total_tentativas'] ?? 0) > 0
         && count($dados['labels'] ?? []) >= 2;
 }
-
-
-
 
 
 

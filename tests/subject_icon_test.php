@@ -4,17 +4,19 @@ declare(strict_types=1);
 require_once __DIR__ . '/../includes/helpers.php';
 
 $subjects = [
-    'Biologia',
-    'Matemática Avançada',
-    'História do Brasil',
-    'Geografia',
-    'Química Orgânica',
-    'Física Moderna',
-    'Redação',
-    'Sociologia',
-    'Filosofia',
     'Português',
-    'Línguas estrangeiras',
+    'Matemática',
+    'Ciências',
+    'História',
+    'Geografia',
+    'Inglês',
+    'Literatura',
+    'Redação',
+    'Física',
+    'Química',
+    'Biologia',
+    'Filosofia',
+    'Sociologia',
 ];
 
 foreach ($subjects as $subject) {

@@ -16,12 +16,14 @@ $readFilter = static function (string $name, int $limit): string {
 };
 
 $queryError = '';
+$libraryFlash = $_SESSION['library_flash'] ?? null;
+unset($_SESSION['library_flash']);
 $materiais = [];
 $busca = '';
 $materia = '';
 $tipo = '';
 $usuarioPremium = false;
-$tiposPermitidos = ['', 'livro', 'apostila', 'pdf', 'artigo', 'video_aula'];
+$tiposPermitidos = ['', 'livro', 'apostila', 'pdf', 'artigo', 'video_aula', 'resumo', 'outro'];
 try {
   $busca = $readFilter('q', 120);
   $materia = $readFilter('materia', 80);
@@ -30,7 +32,7 @@ try {
     throw new InvalidArgumentException('Tipo inválido.');
   }
   $usuarioId = (int) $_SESSION['usuario_id'];
-  $usuarioPremium = !empty($_SESSION['usuario_premium_ativo']);
+  $usuarioPremium = usuario_tem_acesso_premium();
   $materiais = buscar_materiais_biblioteca($pdo, $usuarioId, $usuarioPremium, $busca, $materia, $tipo);
 } catch (InvalidArgumentException $exception) {
   http_response_code(400);
@@ -48,6 +50,8 @@ $typeLabels = [
   'artigo' => 'Artigo',
   'video_aula' => 'Videoaula',
   'material' => 'Material',
+  'resumo' => 'Resumo',
+  'outro' => 'Material educacional',
 ];
 
 $safeCatalogUrl = static function (string $value): string {
@@ -94,6 +98,67 @@ $safeCatalogUrl = static function (string $value): string {
         </div>
       </header>
 
+      <?php if (is_array($libraryFlash) && isset($libraryFlash['message'])): ?>
+        <div class="library-state" role="<?= ($libraryFlash['type'] ?? '') === 'error' ? 'alert' : 'status' ?>"><?= esc((string) $libraryFlash['message']) ?></div>
+      <?php endif; ?>
+
+      <?php if (!isset($_SESSION['instituicao_usuario_id'])): ?>
+        <section class="library-admin" aria-labelledby="library-admin-title">
+          <h2 id="library-admin-title">Criar material educacional</h2>
+          <p><?= is_admin_user()
+              ? 'Área administrativa. Todo material passa por revisão e exige declaração e evidência adequadas.'
+              : (is_professor()
+                  ? 'Professores aprovados podem enviar materiais para revisão, conforme a cota do plano. Outros perfis podem salvar rascunhos e submeter conteúdo para revisão.'
+                  : 'Salve um rascunho ou envie seu material para revisão antes da publicação.') ?></p>
+          <a class="btn btn-primary" href="biblioteca-editor.php">Abrir editor da Biblioteca</a>
+          <?php if (is_admin_user()): ?>
+            <a class="btn btn-outline" href="admin-biblioteca-revisao.php">Revisar materiais pendentes</a>
+          <?php endif; ?>
+        </section>
+      <?php endif; ?>
+      <a class="btn btn-outline library-loan-entry" href="biblioteca-emprestimos.php">Ver empréstimos e exemplares</a>
+
+      <?php
+      $draftError = '';
+      $myDrafts = [];
+      if (isset($_SESSION['usuario_id'])) {
+        try {
+          $draftQuery = $pdo->prepare(
+            'SELECT id, titulo, revisao_status, revisao_motivo, atualizado_em
+             FROM biblioteca
+             WHERE owner_user_id = :owner_user_id AND instituicao_id IS NULL
+               AND revisao_status IN ("draft", "rejected")
+             ORDER BY atualizado_em DESC, id DESC'
+          );
+          $draftQuery->execute(['owner_user_id' => (int) $_SESSION['usuario_id']]);
+          $myDrafts = $draftQuery->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $exception) {
+          error_log('[S.A Education][library_drafts] ' . $exception->getMessage());
+          $draftError = 'Não foi possível carregar seus rascunhos agora.';
+        }
+      }
+      ?>
+      <?php if ($draftError !== ''): ?>
+        <div class="library-state" role="alert"><?= esc($draftError) ?></div>
+      <?php endif; ?>
+      <?php if ($myDrafts !== []): ?>
+        <section aria-labelledby="my-library-drafts">
+          <h2 id="my-library-drafts">Meus rascunhos e materiais que precisam de ajustes</h2>
+          <ul>
+            <?php foreach ($myDrafts as $draftItem): ?>
+              <li>
+                <?= esc((string) ($draftItem['titulo'] !== '' ? $draftItem['titulo'] : 'Rascunho sem título')) ?>
+                — <?= (string) $draftItem['revisao_status'] === 'rejected' ? 'Revisão recusada' : 'Rascunho' ?>
+                <?php if ((string) ($draftItem['revisao_motivo'] ?? '') !== ''): ?>
+                  <span><?= esc((string) $draftItem['revisao_motivo']) ?></span>
+                <?php endif; ?>
+                <a href="biblioteca-editor.php?id=<?= (int) $draftItem['id'] ?>">Editar</a>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        </section>
+      <?php endif; ?>
+
       <form class="library-filters" method="get" action="biblioteca.php" aria-label="Filtrar biblioteca">
         <label class="library-query">
           <span aria-hidden="true">#</span>
@@ -104,7 +169,7 @@ $safeCatalogUrl = static function (string $value): string {
       </form>
 
       <nav class="library-tabs" aria-label="Categorias da biblioteca">
-        <?php foreach (['' => 'Todos', 'livro' => 'Livros', 'apostila' => 'Apostilas', 'pdf' => 'PDFs', 'artigo' => 'Artigos', 'video_aula' => 'Videoaulas'] as $categoryType => $categoryLabel): ?>
+        <?php foreach (['' => 'Todos', 'livro' => 'Livros', 'apostila' => 'Apostilas', 'pdf' => 'PDFs', 'artigo' => 'Artigos', 'resumo' => 'Resumos', 'video_aula' => 'Videoaulas'] as $categoryType => $categoryLabel): ?>
           <?php $categoryUrl = 'biblioteca.php?' . http_build_query(array_merge($_GET, ['tipo' => $categoryType])); ?>
           <a class="<?= $tipo === $categoryType ? 'active' : '' ?>" href="<?= htmlspecialchars($categoryUrl, ENT_QUOTES, 'UTF-8') ?>" <?= $tipo === $categoryType ? 'aria-current="page"' : '' ?>><?= htmlspecialchars($categoryLabel, ENT_QUOTES, 'UTF-8') ?></a>
         <?php endforeach; ?>
@@ -124,7 +189,10 @@ $safeCatalogUrl = static function (string $value): string {
           $resourceUrl = $safeCatalogUrl((string) ($material['resource_url'] ?? ''));
           $coverUrl = $safeCatalogUrl((string) ($material['cover_url'] ?? ''));
           $premiumOnly = (int) ($material['premium_only'] ?? 0) === 1;
-          $canOpen = $resourceUrl !== '' && $access === 'publica' && (!$premiumOnly || $usuarioPremium) && $availability !== 'emprestimo';
+          $isReaderResource = preg_match('/^biblioteca-leitor\.php\?id=\d+$/', $resourceUrl) === 1;
+          $canOpen = $resourceUrl !== ''
+            && ($isReaderResource || ($access === 'publica' && (!$premiumOnly || $usuarioPremium)))
+            && $availability !== 'emprestimo';
           $actionLabel = $type === 'video_aula' ? 'Assistir' : ($availability === 'leitura_online' ? 'Ler online' : 'Abrir material');
           ?>
           <article class="book-card">
@@ -143,12 +211,14 @@ $safeCatalogUrl = static function (string $value): string {
             <span class="book-availability"><?= $availability === 'gratis' ? 'Gratuito' : ($availability === 'leitura_online' ? 'Leitura online' : 'Empréstimo') ?></span>
             <?php if ($premiumOnly): ?><span class="book-badge"><?= $usuarioPremium ? 'Plano Premium ativo' : 'Requer plano Premium' ?></span><?php endif; ?>
             <div class="book-action">
-              <?php if ($canOpen): ?>
+              <?php if ($canOpen && $isReaderResource): ?>
+                <a class="btn btn-outline" href="<?= htmlspecialchars($resourceUrl, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($actionLabel, ENT_QUOTES, 'UTF-8') ?></a>
+              <?php elseif ($canOpen): ?>
                 <a class="btn btn-outline" href="<?= htmlspecialchars($resourceUrl, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars($actionLabel, ENT_QUOTES, 'UTF-8') ?></a>
               <?php elseif ($access !== 'publica' || ($premiumOnly && !$usuarioPremium)): ?>
                 <span class="book-meta">Acesso restrito; abertura integrada indisponível.</span>
               <?php elseif ($availability === 'emprestimo'): ?>
-                <span class="book-meta">Fluxo de solicitação de empréstimo indisponível.</span>
+                <a class="btn btn-outline" href="biblioteca-emprestimos.php">Consultar empréstimos</a>
               <?php else: ?>
                 <span class="book-meta">Arquivo ou leitura online indisponível.</span>
               <?php endif; ?>

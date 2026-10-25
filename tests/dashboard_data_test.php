@@ -6,7 +6,7 @@ $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 
 $schema = [
-    'CREATE TABLE usuarios (id INTEGER PRIMARY KEY, nome_completo TEXT)',
+    'CREATE TABLE usuarios (id INTEGER PRIMARY KEY, nome_completo TEXT, username TEXT, ranking_publico INTEGER NOT NULL DEFAULT 0)',
     'CREATE TABLE salas (id INTEGER PRIMARY KEY, nome TEXT, prof TEXT, alunos INTEGER, materia TEXT, icone TEXT, privacidade TEXT, descricao TEXT, criado_em TEXT)',
     'CREATE TABLE salas_usuarios (id INTEGER PRIMARY KEY, sala_id INTEGER, usuario_id INTEGER, status TEXT, entrou_em TEXT)',
     'CREATE TABLE ranking (id INTEGER PRIMARY KEY, usuario_id INTEGER, pontos INTEGER)',
@@ -29,7 +29,7 @@ function assert_same(mixed $expected, mixed $actual, string $message): void {
     }
 }
 
-$pdo->exec("INSERT INTO usuarios (id, nome_completo) VALUES (10, 'Conta nova'), (20, 'Com histórico'), (30, 'Sem atividades'), (40, 'Outro usuário'), (50, 'Um período')");
+$pdo->exec("INSERT INTO usuarios (id, nome_completo, username) VALUES (10, 'Conta nova', 'conta_nova'), (20, 'Com histórico', 'com_historico'), (30, 'Sem atividades', 'sem_atividades'), (40, 'Outro usuário', 'outro_usuario'), (50, 'Um período', 'um_periodo')");
 $insertAttempt = $pdo->prepare('INSERT INTO tentativas_atividade (usuario_id, tipo, atividade_id, categoria, respostas_corretas, respostas_incorretas, total_respostas, percentual_acerto, concluido, criado_em) VALUES (:usuario_id, :tipo, 1, :categoria, :acertos, :erros, :total, :percentual, :concluido, :criado_em)');
 $attempts = [
     [20, 'quiz', 'Matemática', 2, 1, 3, 66.67, 1, '2026-07-12 10:00:00'],

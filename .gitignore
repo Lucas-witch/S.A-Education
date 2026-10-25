@@ -1,0 +1,7 @@
+.env
+.env.*
+!.env.example
+/uploads/perfil/*
+!/uploads/perfil/.htaccess
+/storage/
+/logs/

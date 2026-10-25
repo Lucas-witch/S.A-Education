@@ -2,21 +2,60 @@
 declare(strict_types=1);
 
 /*
- * Configuração do banco de dados.
- * Usa os valores padrão do XAMPP e ainda aceita variáveis de ambiente.
- * O projeto passa a considerar o banco como fonte única de verdade:
- * não há usuários ou dados padrão inseridos fora do banco.
+ * Desenvolvimento mantém os padrões do XAMPP. Produção exige configuração
+ * explícita e nunca cria o banco ou aplica o schema durante uma requisição.
  */
-$host = getenv('DB_HOST') ?: $_ENV['DB_HOST'] ?? '127.0.0.1';
-$db   = getenv('DB_NAME') ?: $_ENV['DB_NAME'] ?? 'sa_education';
-$user = getenv('DB_USER') ?: $_ENV['DB_USER'] ?? 'root';
-$pass = getenv('DB_PASS') ?: $_ENV['DB_PASS'] ?? '';
-$port = getenv('DB_PORT') ?: $_ENV['DB_PORT'] ?? '3306';
+$readEnvironment = static function (string $name, ?string $default = null): ?string {
+    $value = getenv($name);
+    if ($value !== false) {
+        return (string) $value;
+    }
+    return isset($_ENV[$name]) ? (string) $_ENV[$name] : $default;
+};
+$httpHost = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
+$hostWithoutPort = preg_replace('/:\d+$/', '', $httpHost) ?: $httpHost;
+$defaultAppEnv = in_array($hostWithoutPort, ['localhost', '127.0.0.1', '::1'], true)
+    ? 'development'
+    : 'production';
+$appEnv = strtolower((string) $readEnvironment('APP_ENV', $defaultAppEnv));
+$hostValue = $readEnvironment('DB_HOST', $appEnv === 'development' ? '127.0.0.1' : null);
+$dbValue = $readEnvironment('DB_NAME', $appEnv === 'development' ? 'sa_education' : null);
+$userValue = $readEnvironment('DB_USER', $appEnv === 'development' ? 'root' : null);
+$passValue = $readEnvironment('DB_PASS', $appEnv === 'development' ? '' : null);
+$host = (string) $hostValue;
+$db = (string) $dbValue;
+$user = (string) $userValue;
+$pass = (string) $passValue;
+$port = (int) $readEnvironment('DB_PORT', '3306');
 $charset = 'utf8mb4';
 
-if (!extension_loaded('pdo_mysql')) {
+function database_configuration_failure(string $message): void {
+    if (PHP_SAPI === 'cli') {
+        fwrite(STDERR, $message . PHP_EOL);
+        exit(1);
+    }
     http_response_code(500);
-    exit('Extensão PDO MySQL não está habilitada no PHP. Ative a extensão pdo_mysql no arquivo php.ini.');
+    exit($message);
+}
+
+if (!in_array($appEnv, ['development', 'test', 'production'], true)) {
+    database_configuration_failure('APP_ENV deve ser development, test ou production.');
+}
+if (!defined('APP_ENVIRONMENT')) {
+    define('APP_ENVIRONMENT', $appEnv);
+}
+if (
+    $appEnv === 'production'
+    && ($userValue === null || $user === '' || $dbValue === null || $hostValue === null || $passValue === null || $port < 1)
+) {
+    database_configuration_failure('A configuração de conexão com o banco não está completa.');
+}
+if (!preg_match('/^[A-Za-z0-9_]+$/', $db) || !preg_match('/^[A-Za-z0-9.-]+$/', $host) || $port < 1 || $port > 65535) {
+    database_configuration_failure('A configuração de conexão com o banco é inválida.');
+}
+
+if (!extension_loaded('pdo_mysql')) {
+    database_configuration_failure('Extensão PDO MySQL não está habilitada no PHP.');
 }
 
 $options = [
@@ -26,6 +65,9 @@ $options = [
 ];
 
 function create_database_if_needed(string $host, int $port, string $user, string $pass, string $db): void {
+    if (!preg_match('/^[A-Za-z0-9_]+$/', $db)) {
+        throw new InvalidArgumentException('Identificador de banco de dados inválido.');
+    }
     $dsn = "mysql:host={$host};port={$port};charset=utf8mb4";
     $pdo = new PDO($dsn, $user, $pass, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -81,23 +123,24 @@ try {
     $dsn = "mysql:host={$host};port={$port};dbname={$db};charset={$charset}";
     $pdo = new PDO($dsn, $user, $pass, $options);
 } catch (PDOException $e) {
-    $message = $e->getMessage();
-    $needsDatabase = str_contains($message, 'Unknown database') || str_contains($message, '1049') || str_contains($message, 'Base') || str_contains($message, 'database');
+    $needsDatabase = (int) ($e->errorInfo[1] ?? 0) === 1049;
 
-    if ($needsDatabase) {
+    if ($needsDatabase && $appEnv === 'development' && $readEnvironment('DB_AUTO_CREATE', 'true') === 'true') {
         try {
             create_database_if_needed($host, (int) $port, $user, $pass, $db);
             $pdo = new PDO("mysql:host={$host};port={$port};dbname={$db};charset={$charset}", $user, $pass, $options);
         } catch (PDOException $createError) {
-            http_response_code(500);
-            exit('Não foi possível criar o banco de dados automaticamente. Verifique o acesso do MySQL no XAMPP e as credenciais em conexao.php.');
+            error_log('[S.A Education][database_create][PDO] ' . $createError->getMessage());
+            database_configuration_failure('Não foi possível inicializar o banco de dados. Verifique a configuração local.');
         }
     } else {
-        http_response_code(500);
-        exit('Não foi possível conectar ao banco de dados. Verifique se o MySQL está rodando e se as credenciais estão corretas.');
+        error_log('[S.A Education][database_connect][PDO] ' . $e->getMessage());
+        database_configuration_failure('Não foi possível conectar ao banco de dados. Verifique a configuração do ambiente.');
     }
 }
 
-load_database_schema($pdo, __DIR__);
+if ($appEnv === 'development' && $readEnvironment('DB_AUTO_MIGRATE', 'true') === 'true') {
+    load_database_schema($pdo, __DIR__);
+}
 
-unset($schemaPath, $schema, $statements, $tableCheck);
+unset($schemaPath, $schema, $statements, $tableCheck, $readEnvironment, $appEnv, $hostValue, $dbValue, $userValue, $passValue, $httpHost, $hostWithoutPort, $defaultAppEnv);

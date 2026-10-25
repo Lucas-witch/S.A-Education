@@ -26,6 +26,7 @@ $formValues = [
     'nome_completo' => $nome,
     'email' => $email,
     'username' => $username,
+    'ranking_publico' => ($_POST['ranking_publico'] ?? '') === '1' ? '1' : '0',
 ];
 
 $redirectWithError = static function (string $message) use ($formValues): void {
@@ -92,6 +93,7 @@ $newImage = $oldImage !== '' ? $oldImage : $defaultImage;
 $newFilePath = null;
 $uploadDirectory = __DIR__ . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'perfil';
 $removePhoto = ($_POST['remover_foto'] ?? '') === '1';
+$rankingPublico = $formValues['ranking_publico'] === '1' ? 1 : 0;
 $photoUpload = $_FILES['foto'] ?? null;
 $uploadError = is_array($photoUpload) ? (int) ($photoUpload['error'] ?? UPLOAD_ERR_NO_FILE) : UPLOAD_ERR_NO_FILE;
 
@@ -134,6 +136,20 @@ if ($uploadError === UPLOAD_ERR_OK) {
         $redirectWithError('Envie uma imagem JPEG, PNG ou WebP válida.');
     }
 
+    $width = (int) ($imageInfo[0] ?? 0);
+    $height = (int) ($imageInfo[1] ?? 0);
+    if ($width < 1 || $height < 1 || $width > 4096 || $height > 4096 || $width * $height > 8_000_000) {
+        $redirectWithError('A imagem deve ter no máximo 4096 × 4096 pixels e até 8 megapixels.');
+    }
+
+    $canReencode = extension_loaded('gd')
+        && function_exists('imagecreatefromstring')
+        && function_exists('imagejpeg');
+    if (!$canReencode && app_environment() === 'production') {
+        error_log('[S.A Education][profile_upload] A extensão GD é obrigatória para reprocessar imagens em produção.');
+        $redirectWithError('O envio de fotos está temporariamente indisponível neste servidor.');
+    }
+
     if (is_link($uploadDirectory)) {
         error_log('[S.A Education][profile_upload] Diretório de fotos é um link simbólico.');
         $redirectWithError('Não foi possível salvar a foto agora.');
@@ -143,11 +159,49 @@ if ($uploadError === UPLOAD_ERR_OK) {
         $redirectWithError('Não foi possível salvar a foto agora.');
     }
 
-    $filename = bin2hex(random_bytes(16)) . '.' . $allowedImages[$mime];
+    $filename = bin2hex(random_bytes(16)) . ($canReencode ? '.jpg' : '.' . $allowedImages[$mime]);
     $destination = $uploadDirectory . DIRECTORY_SEPARATOR . $filename;
-    if (!move_uploaded_file((string) $photoUpload['tmp_name'], $destination)) {
-        error_log('[S.A Education][profile_upload] Não foi possível mover o arquivo validado.');
-        $redirectWithError('Não foi possível salvar a foto agora.');
+    if ($canReencode) {
+        $sourceBytes = file_get_contents((string) $photoUpload['tmp_name']);
+        $sourceImage = is_string($sourceBytes) ? @imagecreatefromstring($sourceBytes) : false;
+        unset($sourceBytes);
+        if ($sourceImage === false) {
+            $redirectWithError('A imagem não pôde ser processada. Envie outro arquivo.');
+        }
+        $cleanImage = imagecreatetruecolor($width, $height);
+        if ($cleanImage === false) {
+            imagedestroy($sourceImage);
+            error_log('[S.A Education][profile_upload] Não foi possível alocar a imagem reprocessada.');
+            $redirectWithError('O envio de fotos está temporariamente indisponível.');
+        }
+        $white = imagecolorallocate($cleanImage, 255, 255, 255);
+        imagefill($cleanImage, 0, 0, $white);
+        imagecopy($cleanImage, $sourceImage, 0, 0, 0, 0, $width, $height);
+        $temporaryImage = tempnam($uploadDirectory, '.profile-image-');
+        $reencoded = $temporaryImage !== false && imagejpeg($cleanImage, $temporaryImage, 88);
+        imagedestroy($sourceImage);
+        imagedestroy($cleanImage);
+        if (!$reencoded || $temporaryImage === false || !rename($temporaryImage, $destination)) {
+            if (is_string($temporaryImage) && is_file($temporaryImage)) {
+                unlink($temporaryImage);
+            }
+            error_log('[S.A Education][profile_upload] Falha ao reprocessar ou persistir a imagem.');
+            $redirectWithError('Não foi possível salvar a foto agora.');
+        }
+        if (!chmod($destination, 0640)) {
+            unlink($destination);
+            error_log('[S.A Education][profile_upload] Não foi possível restringir as permissões da imagem.');
+            $redirectWithError('Não foi possível salvar a foto agora.');
+        }
+    } else {
+        error_log('[S.A Education][profile_upload] Reprocessamento indisponível no ambiente de desenvolvimento; usando a imagem validada original.');
+        if (!move_uploaded_file((string) $photoUpload['tmp_name'], $destination) || !chmod($destination, 0640)) {
+            if (is_file($destination)) {
+                unlink($destination);
+            }
+            error_log('[S.A Education][profile_upload] Não foi possível persistir a imagem ou restringir suas permissões.');
+            $redirectWithError('Não foi possível salvar a foto agora.');
+        }
     }
 
     $newImage = 'uploads/perfil/' . $filename;
@@ -159,7 +213,8 @@ if ($uploadError === UPLOAD_ERR_OK) {
 try {
     $updateStmt = $pdo->prepare(
         'UPDATE usuarios
-         SET nome_completo = :nome, email = :email, username = :username, perfil_imagem = :perfil_imagem
+         SET nome_completo = :nome, email = :email, username = :username,
+             perfil_imagem = :perfil_imagem, ranking_publico = :ranking_publico
          WHERE id = :id'
     );
     $updateStmt->execute([
@@ -167,6 +222,7 @@ try {
         'email' => $email,
         'username' => $username,
         'perfil_imagem' => $newImage,
+        'ranking_publico' => $rankingPublico,
         'id' => $usuarioId,
     ]);
 

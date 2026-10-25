@@ -28,7 +28,7 @@ function build_line_points(array $values, int $width, int $height, int $padding)
 $perfilAtual = current_user_perfil();
 $usuarioId = (int) $_SESSION['usuario_id'];
 $usuarioStmt = $pdo->prepare(
-    'SELECT id, nome_completo, email, username, perfil_imagem
+    'SELECT id, nome_completo, email, username, perfil_imagem, ranking_publico
      FROM usuarios
      WHERE id = :id
      LIMIT 1'
@@ -55,6 +55,7 @@ unset($_SESSION['profile_edit_flash'], $_SESSION['profile_edit_form']);
 $formName = (string) ($profileFormValues['nome_completo'] ?? $nomeUsuario);
 $formEmail = (string) ($profileFormValues['email'] ?? $email);
 $formUsername = (string) ($profileFormValues['username'] ?? $username);
+$formRankingPublico = (string) ($profileFormValues['ranking_publico'] ?? $usuarioPerfil['ranking_publico'] ?? '0') === '1';
 
 $performanceData = obter_dados_dashboard_usuario($pdo, (int) ($_SESSION['usuario_id'] ?? 0));
 $timelineLabels = $performanceData['labels'] ?? [];
@@ -102,6 +103,15 @@ $errosPoints = build_line_points($erros, $chartWidth, $chartHeight, $chartPaddin
                         <a href="index.php" class="icon-btn" aria-label="Voltar ao início">←</a>
                     </div>
                 </header>
+
+                <?php if (is_professor() && empty($_SESSION['usuario_aprovado'])): ?>
+                    <section class="panel" role="status">
+                        <h2>Perfil de professor em análise</h2>
+                        <p><?= ($_SESSION['usuario_professor_status'] ?? '') === 'rejected'
+                            ? 'A solicitação foi rejeitada. Entre em contato com a administração para obter orientação.'
+                            : 'A administração precisa aprovar seu perfil antes de você publicar como professor.' ?></p>
+                    </section>
+                <?php endif; ?>
 
                 <section class="panel hero-panel">
                     <div class="profile-shell">
@@ -178,6 +188,12 @@ $errosPoints = build_line_points($erros, $chartWidth, $chartHeight, $chartPaddin
                                 <input type="email" name="email" value="<?= htmlspecialchars($formEmail, ENT_QUOTES, 'UTF-8') ?>" maxlength="255" autocomplete="email" required>
                             </label>
                         </div>
+
+                        <label class="profile-remove-photo">
+                            <input type="checkbox" name="ranking_publico" value="1" <?= $formRankingPublico ? 'checked' : '' ?>>
+                            Participar do ranking público usando somente meu nome de usuário e pontuação.
+                        </label>
+                        <small>Esta escolha é opcional. Seu nome completo e e-mail não serão exibidos no ranking.</small>
 
                         <button type="submit" class="btn btn-primary">Salvar alterações</button>
                     </form>

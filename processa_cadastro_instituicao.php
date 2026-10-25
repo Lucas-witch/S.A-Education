@@ -119,8 +119,8 @@ try {
 
     $pdo->commit();
     unset($_SESSION['dados_instituicao']);
-    $_SESSION['sucesso'] = 'Acesso institucional criado com sucesso! Agora faça login.';
-    header('Location: login.php');
+    $_SESSION['sucesso_instituicao'] = 'Acesso institucional criado com sucesso. Faça login para continuar.';
+    header('Location: login-instituicao.php');
     exit;
 } catch (PDOException $e) {
     if ($pdo->inTransaction()) {

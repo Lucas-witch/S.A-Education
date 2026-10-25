@@ -48,3 +48,24 @@ textarea.form-control{min-height:100px;resize:vertical}
    background:var(--border);
    flex:1;
 }
+.room-detail-card{padding:clamp(18px,3vw,28px);display:grid;gap:20px}
+.room-banner{display:flex;align-items:center;gap:18px;padding:20px;border-radius:16px;background:linear-gradient(125deg,var(--purple),#8e56a5);color:#fff}
+.room-banner h2{margin:7px 0;font-size:clamp(22px,4vw,30px)}
+.room-banner p{margin:0}
+.room-detail-eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.room-detail-item{padding:18px}
+.room-detail-item p{margin:0 0 8px;color:var(--muted)}
+.room-actions{display:flex;gap:10px;flex-wrap:wrap}
+.room-report,.room-management{border-top:1px solid var(--border);padding-top:18px}
+.room-report summary{cursor:pointer;font-weight:700;color:var(--purple)}
+.room-report form{display:grid;gap:10px;margin-top:14px}
+.room-report textarea{min-height:90px;resize:vertical}
+.room-management ul{display:grid;gap:12px;padding-left:20px}
+.room-management li form{display:inline-flex;gap:8px;flex-wrap:wrap;margin:8px 0 0 12px}
+.room-management .btn{padding:8px 12px}
+@media(max-width:600px){
+  .room-banner{align-items:flex-start;padding:16px}
+  .room-actions>*{width:100%}
+  .room-actions .btn{width:100%}
+  .room-management li form{display:flex;margin-left:0}
+}
