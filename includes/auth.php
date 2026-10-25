@@ -1,8 +1,17 @@
 <?php
 require_once __DIR__ . '/helpers.php';
-session_configure_security();
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+if (!defined('SA_API_REQUEST')) {
+    session_configure_security();
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+} else {
+    ini_set('session.use_cookies', '0');
+    ini_set('session.use_trans_sid', '0');
+    session_configure_security();
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
 }
 send_private_no_store_headers();
 

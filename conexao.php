@@ -30,6 +30,21 @@ $port = (int) $readEnvironment('DB_PORT', '3306');
 $charset = 'utf8mb4';
 
 function database_configuration_failure(string $message): void {
+    if (defined('SA_API_REQUEST')) {
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        http_response_code(500);
+        echo json_encode([
+            'data' => null,
+            'error' => [
+                'code' => 'INTERNAL_ERROR',
+                'message' => 'Não foi possível conectar ao serviço. Tente novamente mais tarde.',
+            ],
+            'meta' => null,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+
     if (PHP_SAPI === 'cli') {
         fwrite(STDERR, $message . PHP_EOL);
         exit(1);

@@ -142,6 +142,10 @@ function csrf_token(): string {
 }
 
 function verify_csrf($token): void {
+    if (defined('SA_API_BEARER_AUTHENTICATED') && SA_API_BEARER_AUTHENTICATED === true) {
+        return;
+    }
+
     if (!is_string($token) || $token === '' || empty($_SESSION['csrf_token']) || !is_string($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $token)) {
         http_response_code(400);
         exit('Requisição inválida (CSRF).');

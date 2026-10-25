@@ -24,16 +24,19 @@ function biblioteca_has_advanced_metadata(PDO $pdo): bool {
     return (int) $statement->fetchColumn() >= 9;
 }
 
-function pesquisar_catalogo(PDO $pdo, int $usuarioId, bool $usuarioPremium, string $q, string $assunto, string $materia, string $tipo, string $acesso, int $page, int $limit): array {
+function pesquisar_catalogo(PDO $pdo, int $usuarioId, bool $usuarioPremium, string $q, string $assunto, string $materia, string $tipo, string $acesso, int $page, int $limit, string $source = ''): array {
     $supportedTypes = ['sala', 'aula', 'video_aula', 'material', 'pdf', 'livro', 'apostila', 'artigo', 'redacao', 'post', 'resumo', 'outro'];
     if ($tipo !== '' && !in_array($tipo, $supportedTypes, true)) {
         throw new InvalidArgumentException('Tipo de conteúdo inválido.');
+    }
+    if (!in_array($source, ['', 'biblioteca'], true)) {
+        throw new InvalidArgumentException('Origem do conteúdo inválida.');
     }
     if (!in_array($acesso, ['', 'publica', 'privada', 'instituicao', 'premium'], true)) {
         throw new InvalidArgumentException('Filtro de acesso inválido.');
     }
 
-    $includeRooms = $tipo === '' || $tipo === 'sala';
+    $includeRooms = $source !== 'biblioteca' && ($tipo === '' || $tipo === 'sala');
     if ($acesso === 'premium') {
         $includeRooms = false;
     }
@@ -48,8 +51,8 @@ function pesquisar_catalogo(PDO $pdo, int $usuarioId, bool $usuarioPremium, stri
         'post' => ['post'],
     ];
     $libraryTypes = ['livro', 'pdf', 'apostila', 'artigo', 'material', 'resumo', 'outro'];
-    $includePublications = $tipo === '' || isset($publicationTypes[$tipo]);
-    $includeLibrary = ($tipo === '' || in_array($tipo, $libraryTypes, true)) && !in_array($acesso, ['privada', 'premium'], true);
+    $includePublications = $source !== 'biblioteca' && ($tipo === '' || isset($publicationTypes[$tipo]));
+    $includeLibrary = ($source === 'biblioteca' || $tipo === '' || in_array($tipo, $libraryTypes, true)) && !in_array($acesso, ['privada', 'premium'], true);
     $parts = [];
     $params = [];
 

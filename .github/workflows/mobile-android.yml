@@ -1,0 +1,150 @@
+name: Mobile Android
+
+on:
+  pull_request:
+    paths:
+      - "mobile/**"
+      - "api/v1/**"
+      - "api/pesquisa.php"
+      - "includes/search.php"
+      - "tests/catalog_search_test.php"
+      - "Markdowns/API_MOBILE.md"
+      - ".github/workflows/mobile-android.yml"
+  push:
+    paths:
+      - "mobile/**"
+      - "api/v1/**"
+      - "api/pesquisa.php"
+      - "includes/search.php"
+      - "tests/catalog_search_test.php"
+      - "Markdowns/API_MOBILE.md"
+      - ".github/workflows/mobile-android.yml"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing version tag to build and attach to a draft GitHub Release
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate mobile and backend contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install mobile dependencies
+        working-directory: mobile
+        run: npm ci
+
+      - name: Type-check, lint, format and test mobile
+        working-directory: mobile
+        run: |
+          npm run typecheck
+          npm run lint
+          npm run format:check
+          npm test
+          npx expo-doctor
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mbstring, pdo_sqlite
+
+      - name: Run PHP regression suite
+        shell: bash
+        run: |
+          for test_file in tests/*_test.php; do
+            php "$test_file"
+          done
+
+  draft-release:
+    name: Build APK and create draft release
+    if: github.event_name == 'workflow_dispatch'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Validate release tag
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]]; then
+            echo "Use a version tag such as v1.2.3."
+            exit 1
+          fi
+
+      - name: Check out tagged release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install mobile dependencies
+        working-directory: mobile
+        run: npm ci
+
+      - name: Validate public production API URL
+        working-directory: mobile
+        env:
+          APP_ENV: production
+          EXPO_PUBLIC_API_BASE_URL: ${{ vars.EXPO_PUBLIC_API_BASE_URL }}
+        run: npx expo config --type public --json > ${{ runner.temp }}/mobile-config.json
+
+      - name: Build signed production APK with EAS
+        working-directory: mobile
+        env:
+          APP_ENV: production
+          EXPO_PUBLIC_API_BASE_URL: ${{ vars.EXPO_PUBLIC_API_BASE_URL }}
+          EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
+        run: npx eas-cli@25.3.0 build --platform android --profile production --non-interactive --wait --json > "$RUNNER_TEMP/eas-build.json"
+
+      - name: Download APK and generate checksum
+        working-directory: mobile
+        env:
+          EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
+        run: |
+          mkdir -p artifacts
+          BUILD_ID=$(node -e 'const value = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); const build = Array.isArray(value) ? value.at(-1) : value; if (!build || typeof build.id !== "string") process.exit(1); process.stdout.write(build.id);' "$RUNNER_TEMP/eas-build.json")
+          test -n "$BUILD_ID"
+          cd artifacts
+          npx eas-cli@25.3.0 build:download --build-id "$BUILD_ID" --non-interactive
+          APK=$(find . -maxdepth 1 -type f -name '*.apk' -print -quit)
+          test -n "$APK"
+          mv "$APK" sa-education.apk
+          cd ..
+          test -s artifacts/sa-education.apk
+          (cd artifacts && sha256sum sa-education.apk > sa-education.apk.sha256)
+
+      - name: Create draft GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          gh release create "$RELEASE_TAG" \
+            mobile/artifacts/sa-education.apk \
+            mobile/artifacts/sa-education.apk.sha256 \
+            --draft \
+            --verify-tag \
+            --title "S.A Education $RELEASE_TAG" \
+            --notes "APK Android assinado. Verifique o checksum SHA-256 antes da instalação. A publicação permanece como rascunho até revisão manual."

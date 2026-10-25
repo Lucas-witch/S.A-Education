@@ -33,6 +33,7 @@ try {
     $materia = $readText('materia', 80);
     $tipo = strtolower($readText('tipo', 30));
     $acesso = strtolower($readText('acesso', 12));
+    $source = strtolower($readText('origem', 20));
 
     $pageInput = $_GET['page'] ?? '1';
     $limitInput = $_GET['limit'] ?? '8';
@@ -54,7 +55,7 @@ try {
     }
     $usuarioPremium = $usuarioAtualId > 0 && usuario_tem_acesso_premium();
 
-    $resultado = pesquisar_catalogo($pdo, $usuarioAtualId, $usuarioPremium, $q, $assunto, $materia, $tipo, $acesso, $page, $limit);
+    $resultado = pesquisar_catalogo($pdo, $usuarioAtualId, $usuarioPremium, $q, $assunto, $materia, $tipo, $acesso, $page, $limit, $source);
     echo json_encode($resultado, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (InvalidArgumentException $exception) {
     http_response_code(400);

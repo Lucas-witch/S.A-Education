@@ -3,7 +3,18 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/room_access.php';
 
-function buscar_salas(PDO $pdo, int $usuarioId, string $termo, string $assunto, string $materia, string $acesso, ?int $salaId = null): array {
+function buscar_salas(
+    PDO $pdo,
+    int $usuarioId,
+    string $termo,
+    string $assunto,
+    string $materia,
+    string $acesso,
+    ?int $salaId = null,
+    ?int $limit = null,
+    int $offset = 0,
+    ?int &$total = null
+): array {
     if (!in_array($acesso, ['', 'publica', 'privada', 'instituicao'], true)) {
         throw new InvalidArgumentException('Filtro de acesso inválido.');
     }
@@ -66,11 +77,31 @@ function buscar_salas(PDO $pdo, int $usuarioId, string $termo, string $assunto, 
         $params[':sala_id'] = $salaId;
     }
 
+    $whereSql = implode(' AND ', $where);
+    if ($limit !== null) {
+        if ($limit < 1 || $limit > 50 || $offset < 0) {
+            throw new InvalidArgumentException('Paginação inválida.');
+        }
+        $count = $pdo->prepare('SELECT COUNT(*) FROM salas s WHERE ' . $whereSql);
+        $count->execute($params);
+        $total = (int) $count->fetchColumn();
+    }
+
     $sql = 'SELECT s.id, s.nome, s.criador_id, s.institution_id, s.categoria, s.area_conhecimento, s.prof, '
         . '(SELECT COUNT(*) FROM salas_usuarios su_count WHERE su_count.sala_id = s.id AND su_count.status = "ativo") AS alunos, '
         . 's.materia, s.icone, s.privacidade, s.descricao, s.criado_em '
-        . 'FROM salas s WHERE ' . implode(' AND ', $where) . ' ORDER BY s.criado_em DESC, s.id DESC';
+        . 'FROM salas s WHERE ' . $whereSql . ' ORDER BY s.criado_em DESC, s.id DESC';
+    if ($limit !== null) {
+        $sql .= ' LIMIT :room_limit OFFSET :room_offset';
+    }
     $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
+    foreach ($params as $name => $value) {
+        $stmt->bindValue($name, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+    }
+    if ($limit !== null) {
+        $stmt->bindValue(':room_limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':room_offset', $offset, PDO::PARAM_INT);
+    }
+    $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }

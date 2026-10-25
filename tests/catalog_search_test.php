@@ -89,6 +89,12 @@ $memberPrivateRooms = buscar_salas($pdo, 2, '', 'Genética', 'Biologia', 'privad
 assert_catalog(count($memberPrivateRooms) === 1 && (int) $memberPrivateRooms[0]['id'] === 11, 'Filtro de assunto e acesso deve achar sala privada do membro.');
 $nonmemberPrivateRooms = buscar_salas($pdo, 3, '', '', '', 'privada');
 assert_catalog($nonmemberPrivateRooms === [], 'Filtro privado não deve expor sala a usuário sem vínculo.');
+$roomTotal = 0;
+$firstRoomPage = buscar_salas($pdo, 2, '', '', '', '', null, 1, 0, $roomTotal);
+$secondRoomPage = buscar_salas($pdo, 2, '', '', '', '', null, 1, 1, $roomTotal);
+assert_catalog($roomTotal === 3, 'A paginação mobile deve contar somente as salas autorizadas.');
+assert_catalog(count($firstRoomPage) === 1 && count($secondRoomPage) === 1, 'A paginação mobile deve limitar resultados no banco.');
+assert_catalog((int) $firstRoomPage[0]['id'] !== (int) $secondRoomPage[0]['id'], 'Páginas consecutivas não devem repetir salas.');
 
 $ownerResults = pesquisar_catalogo($pdo, 1, false, '', '', '', '', 'privada', 1, 20);
 assert_catalog(in_array('publicacao:101', catalog_ids($ownerResults), true), 'Proprietário deve encontrar sua publicação privada.');
@@ -98,6 +104,12 @@ assert_catalog(in_array('biblioteca:3', catalog_ids($institutionOwner), true), '
 
 $apostilas = pesquisar_catalogo($pdo, 3, false, '', '', 'Matemática', 'apostila', '', 1, 20);
 assert_catalog(catalog_ids($apostilas) === ['biblioteca:2'], 'Filtro de tipo e matéria deve usar os dados da biblioteca.');
+$libraryCatalog = pesquisar_catalogo($pdo, 3, false, '', '', '', '', '', 1, 20, 'biblioteca');
+assert_catalog(
+    $libraryCatalog['items'] !== []
+        && array_reduce($libraryCatalog['items'], static fn (bool $onlyLibrary, array $item): bool => $onlyLibrary && $item['source'] === 'biblioteca', true),
+    'Origem biblioteca deve retornar somente materiais da Biblioteca.'
+);
 
 $premium = pesquisar_catalogo($pdo, 1, true, '', '', '', 'video_aula', 'premium', 1, 20);
 assert_catalog(catalog_ids($premium) === ['publicacao:104'], 'Filtro Premium deve refletir o marcador persistido e exigir plano ativo.');
