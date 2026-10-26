@@ -20,7 +20,13 @@ function render_question_subject_badge(array $subject, string $variant = 'compac
         && !str_contains($imagePath, '..')
         && preg_match('/^[A-Za-z0-9_() .\/-]+\.png$/', $imagePath) === 1;
     $imageExists = $validImagePath
-        && is_file(dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $imagePath));
+        && is_file(
+            dirname(__DIR__)
+            . DIRECTORY_SEPARATOR . 'apps'
+            . DIRECTORY_SEPARATOR . 'web'
+            . DIRECTORY_SEPARATOR . 'public'
+            . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $imagePath)
+        );
     if ($imagePath !== '' && !$imageExists) {
         error_log('[S.A Education][question_catalog_asset] Imagem de matéria ausente ou inválida: ' . $imagePath);
     }

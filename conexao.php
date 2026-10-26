@@ -29,16 +29,17 @@ $pass = (string) $passValue;
 $port = (int) $readEnvironment('DB_PORT', '3306');
 $charset = 'utf8mb4';
 
-function database_configuration_failure(string $message): void {
+function database_configuration_failure(string $message, int $statusCode = 500): void {
+    error_log('[S.A Education][database_configuration] ' . $message);
     if (defined('SA_API_REQUEST')) {
         header('Content-Type: application/json; charset=utf-8');
         header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-        http_response_code(500);
+        http_response_code($statusCode);
         echo json_encode([
             'data' => null,
             'error' => [
-                'code' => 'INTERNAL_ERROR',
-                'message' => 'Não foi possível conectar ao serviço. Tente novamente mais tarde.',
+                'code' => $statusCode === 503 ? 'DATABASE_UNAVAILABLE' : 'INTERNAL_ERROR',
+                'message' => 'Não foi possível iniciar o serviço agora. Tente novamente mais tarde.',
             ],
             'meta' => null,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -49,8 +50,30 @@ function database_configuration_failure(string $message): void {
         fwrite(STDERR, $message . PHP_EOL);
         exit(1);
     }
-    http_response_code(500);
-    exit($message);
+    http_response_code($statusCode);
+    exit('Não foi possível iniciar o serviço agora. Tente novamente mais tarde.');
+}
+
+function database_request_failure(PDOException $exception, string $context): array {
+    error_log('[S.A Education][' . $context . '] ' . $exception->getMessage());
+    $sqlState = (string) ($exception->errorInfo[0] ?? $exception->getCode());
+    $driverCode = (int) ($exception->errorInfo[1] ?? 0);
+    if (in_array($driverCode, [1054, 1146], true) || in_array($sqlState, ['42S02', '42S22'], true)) {
+        return [
+            'status' => 503,
+            'message' => 'Este conteúdo ainda não está disponível. Tente novamente mais tarde.',
+        ];
+    }
+    if (str_starts_with($sqlState, '08') || in_array($driverCode, [1045, 1049, 2002, 2003], true)) {
+        return [
+            'status' => 503,
+            'message' => 'Não foi possível conectar ao serviço agora. Tente novamente em instantes.',
+        ];
+    }
+    return [
+        'status' => 500,
+        'message' => 'Não foi possível carregar este conteúdo agora. Tente novamente mais tarde.',
+    ];
 }
 
 if (!in_array($appEnv, ['development', 'test', 'production'], true)) {
@@ -146,11 +169,11 @@ try {
             $pdo = new PDO("mysql:host={$host};port={$port};dbname={$db};charset={$charset}", $user, $pass, $options);
         } catch (PDOException $createError) {
             error_log('[S.A Education][database_create][PDO] ' . $createError->getMessage());
-            database_configuration_failure('Não foi possível inicializar o banco de dados. Verifique a configuração local.');
+            database_configuration_failure('Não foi possível inicializar o banco de dados. Verifique a configuração local.', 503);
         }
     } else {
         error_log('[S.A Education][database_connect][PDO] ' . $e->getMessage());
-        database_configuration_failure('Não foi possível conectar ao banco de dados. Verifique a configuração do ambiente.');
+        database_configuration_failure('Não foi possível conectar ao banco de dados. Verifique a configuração do ambiente.', 503);
     }
 }
 

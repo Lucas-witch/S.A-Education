@@ -19,7 +19,8 @@ foreach ([
         institution_type TEXT, monthly_price NUMERIC, low_income_price NUMERIC,
         requires_income_verification INTEGER, monthly_lesson_limit INTEGER,
         monthly_material_limit INTEGER, monthly_question_bank_limit INTEGER,
-        questions_per_bank_limit INTEGER, can_create_courses INTEGER, is_enabled INTEGER DEFAULT 1
+        questions_per_bank_limit INTEGER, can_create_courses INTEGER,
+        institution_member_limit INTEGER, institution_class_limit INTEGER, is_enabled INTEGER DEFAULT 1
     )',
     'CREATE TABLE subscriptions (
         id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, institution_id INTEGER,

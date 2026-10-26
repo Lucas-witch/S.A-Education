@@ -6,6 +6,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/../conexao.php';
+require_once __DIR__ . '/admin_rbac.php';
 
 $current = basename($_SERVER['PHP_SELF']);
 $perfilAtual = strtolower((string) ($_SESSION['usuario_perfil'] ?? 'estudante'));
@@ -32,8 +33,11 @@ if (
     $desktopItems[] = ['label' => 'Portal acadêmico', 'href' => 'instituicao-portal.php', 'icon' => 'assets/images/icons/book (1).png'];
     $mobileHrefs[] = 'instituicao-portal.php';
 }
-if (is_admin_user()) {
-    $adminItem = ['label' => 'Administração', 'href' => 'admin-permissoes.php', 'icon' => 'assets/images/icons/perfil-de-usuario.png'];
+if (
+    is_admin_user()
+    || admin_user_has_any_role($pdo, (int) ($_SESSION['usuario_id'] ?? 0))
+) {
+    $adminItem = ['label' => 'Administração', 'href' => 'admin.php', 'icon' => 'assets/images/icons/perfil-de-usuario.png'];
     $desktopItems[] = $adminItem;
     $mobileHrefs[] = $adminItem['href'];
 } elseif ($perfilAtual === 'professor') {
@@ -94,7 +98,7 @@ $mobileItems = array_values(array_filter(
     </form>
   <?php endif; ?>
   <a class="brand-mark" href="index.php" aria-label="Início">
-    <img src="assets/images/logo-app.png" alt="S.A Education" id="logo">
+    <img src="assets/images/logo-app-512.png" alt="S.A Education" id="logo" width="42" height="42">
   </a>
   <div class="top-header-actions">
     <button class="menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="site-navigation" data-sidebar-toggle>

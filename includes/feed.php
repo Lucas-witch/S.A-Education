@@ -203,11 +203,25 @@ function feed_normalize_publication_input(array $input, bool $draft = false, boo
     ] + $lessonFields;
 }
 
-function feed_list_publications(PDO $pdo, int $usuarioId, bool $usuarioPremium, string $q, string $type, string $visibility, int $limit = 40, ?int $roomId = null): array {
+function feed_list_publications(
+    PDO $pdo,
+    int $usuarioId,
+    bool $usuarioPremium,
+    string $q,
+    string $type,
+    string $visibility,
+    int $limit = 40,
+    ?int $roomId = null,
+    int $page = 1,
+    ?bool &$hasMore = null
+): array {
     $allowedTypes = ['', 'video_aula', 'artigo', 'redacao', 'pdf', 'livro', 'post', 'material'];
     $allowedVisibility = ['', 'publica', 'privada', 'sala', 'instituicao', 'premium'];
     if (!in_array($type, $allowedTypes, true) || !in_array($visibility, $allowedVisibility, true)) {
         throw new InvalidArgumentException('Filtro de Feed inválido.');
+    }
+    if ($page < 1 || $page > 10000) {
+        throw new InvalidArgumentException('Página do Feed inválida.');
     }
 
     $scope = feed_authorization_scope($usuarioId);
@@ -218,15 +232,28 @@ function feed_list_publications(PDO $pdo, int $usuarioId, bool $usuarioPremium, 
         $params[':feed_premium_owner_id'] = $usuarioId;
     }
     if ($q !== '') {
-        $where[] = '(LOWER(p.titulo) LIKE :feed_q_title OR LOWER(COALESCE(p.resumo, "")) LIKE :feed_q_summary OR LOWER(COALESCE(p.conteudo, "")) LIKE :feed_q_content OR LOWER(COALESCE(p.categoria, "")) LIKE :feed_q_category OR LOWER(COALESCE(u.nome_completo, "")) LIKE :feed_q_author)';
-        $like = '%' . mb_strtolower($q) . '%';
-        $params += [
-            ':feed_q_title' => $like,
-            ':feed_q_summary' => $like,
-            ':feed_q_content' => $like,
-            ':feed_q_category' => $like,
-            ':feed_q_author' => $like,
+        $searchColumns = [
+            'p.titulo',
+            'p.resumo',
+            'p.conteudo',
+            'p.categoria',
+            'p.subject',
+            'p.topic',
+            'p.subtopic',
+            'p.education_stage',
+            'p.knowledge_area',
+            'p.course_title',
+            'u.nome_completo',
+            'u.username',
         ];
+        $searchConditions = [];
+        $like = '%' . mb_strtolower($q, 'UTF-8') . '%';
+        foreach ($searchColumns as $index => $column) {
+            $placeholder = ':feed_q_' . $index;
+            $searchConditions[] = 'LOWER(COALESCE(' . $column . ', "")) LIKE ' . $placeholder;
+            $params[$placeholder] = $like;
+        }
+        $where[] = '(' . implode(' OR ', $searchConditions) . ')';
     }
     if ($type !== '') {
         $where[] = 'p.tipo = :feed_type';
@@ -252,16 +279,23 @@ function feed_list_publications(PDO $pdo, int $usuarioId, bool $usuarioPremium, 
         . '(SELECT COUNT(*) FROM publicacao_comentarios cm WHERE cm.publicacao_id = p.id) AS comentarios, '
         . 'EXISTS(SELECT 1 FROM publicacao_curtidas pc_user WHERE pc_user.publicacao_id = p.id AND pc_user.usuario_id = :feed_like_user) AS usuario_curtiu, '
         . 'EXISTS(SELECT 1 FROM publicacao_salvamentos ps_user WHERE ps_user.publicacao_id = p.id AND ps_user.usuario_id = :feed_save_user) AS usuario_salvou '
-        . 'FROM publicacoes p INNER JOIN usuarios u ON u.id = p.usuario_id WHERE ' . implode(' AND ', $where) . ' ORDER BY p.publicado_em DESC, p.id DESC LIMIT :feed_limit';
+        . 'FROM publicacoes p INNER JOIN usuarios u ON u.id = p.usuario_id WHERE ' . implode(' AND ', $where)
+        . ' ORDER BY p.publicado_em DESC, p.id DESC LIMIT :feed_limit OFFSET :feed_offset';
     $params[':feed_like_user'] = $usuarioId;
     $params[':feed_save_user'] = $usuarioId;
     $statement = $pdo->prepare($sql);
     foreach ($params as $key => $value) {
         $statement->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
     }
-    $statement->bindValue(':feed_limit', $limit, PDO::PARAM_INT);
+    $statement->bindValue(':feed_limit', $limit + 1, PDO::PARAM_INT);
+    $statement->bindValue(':feed_offset', ($page - 1) * $limit, PDO::PARAM_INT);
     $statement->execute();
-    return $statement->fetchAll(PDO::FETCH_ASSOC);
+    $publications = $statement->fetchAll(PDO::FETCH_ASSOC);
+    $hasMore = count($publications) > $limit;
+    if ($hasMore) {
+        array_pop($publications);
+    }
+    return $publications;
 }
 
 function feed_get_publication(PDO $pdo, int $publicationId, int $usuarioId, bool $usuarioPremium): ?array {
@@ -597,7 +631,7 @@ function feed_update_publication(
     }
 }
 
-function feed_archive_publication(PDO $pdo, int $publicationId, int $usuarioId): void {
+function feed_archive_publication(PDO $pdo, int $publicationId, int $usuarioId, bool $adminOverride = false): void {
     $publicationQuery = $pdo->prepare(
         'SELECT usuario_id, sala_id FROM publicacoes
          WHERE id = :id AND status = "publicado" LIMIT 1'
@@ -605,7 +639,8 @@ function feed_archive_publication(PDO $pdo, int $publicationId, int $usuarioId):
     $publicationQuery->execute(['id' => $publicationId]);
     $publication = $publicationQuery->fetch(PDO::FETCH_ASSOC);
     $isAuthor = is_array($publication) && (int) $publication['usuario_id'] === $usuarioId;
-    $isAdmin = configured_admin_user_id() === $usuarioId;
+    $isAdmin = is_admin_user()
+        || ($adminOverride && admin_user_can($pdo, $usuarioId, 'admin.feed.moderate'));
     $isRoomModerator = is_array($publication)
         && $publication['sala_id'] !== null
         && feed_user_can_moderate_room($pdo, (int) $publication['sala_id'], $usuarioId);

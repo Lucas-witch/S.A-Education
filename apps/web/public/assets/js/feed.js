@@ -9,6 +9,22 @@
     node.classList.toggle('feed-state-error', isError);
   };
 
+  const readJsonResponse = async response => {
+    try {
+      return await response.json();
+    } catch {
+      throw new Error('O serviço retornou uma resposta inválida. Tente novamente.');
+    }
+  };
+
+  const request = async (url, options) => {
+    try {
+      return await fetch(url, options);
+    } catch {
+      throw new Error('Não foi possível conectar ao Feed agora. Verifique sua conexão e tente novamente.');
+    }
+  };
+
   const send = async (fields) => {
     const formData = fields instanceof FormData ? fields : new FormData();
     if (!(fields instanceof FormData)) {
@@ -16,8 +32,8 @@
     } else if (!formData.has('csrf')) {
       formData.append('csrf', csrf);
     }
-    const response = await fetch(apiUrl, { method: 'POST', body: formData, credentials: 'same-origin', headers: { Accept: 'application/json' } });
-    const data = await response.json();
+    const response = await request(apiUrl, { method: 'POST', body: formData, credentials: 'same-origin', headers: { Accept: 'application/json' } });
+    const data = await readJsonResponse(response);
     if (!response.ok) throw new Error(data.error || 'Não foi possível concluir a ação.');
     return data;
   };
@@ -131,8 +147,8 @@
     setStatus(status, 'Carregando comentários...');
     try {
       const id = card.dataset.publicationId;
-      const response = await fetch(`${apiUrl}?action=comments&id=${encodeURIComponent(id)}`, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
-      const data = await response.json();
+      const response = await request(`${apiUrl}?action=comments&id=${encodeURIComponent(id)}`, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+      const data = await readJsonResponse(response);
       if (!response.ok) throw new Error(data.error || 'Não foi possível carregar os comentários.');
       const canModerate = card.dataset.canModerate === '1';
       (data.comments || []).forEach(comment => {

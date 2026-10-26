@@ -21,7 +21,7 @@ $subjects = [
 
 foreach ($subjects as $subject) {
     $icon = subject_icon_for($subject);
-    if (!is_file(__DIR__ . '/../' . $icon)) {
+    if (!is_file(__DIR__ . '/../apps/web/public/' . $icon)) {
         throw new RuntimeException('Ícone ausente para a matéria: ' . $subject);
     }
 }

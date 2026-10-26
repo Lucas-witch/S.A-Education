@@ -321,8 +321,15 @@ function room_submit_report(
     return $statement->rowCount() === 1;
 }
 
-function room_review_report(PDO $pdo, int $roomId, int $reportId, string $status, bool $isAdmin, int $reviewerId): void {
-    if (!$isAdmin || $reviewerId <= 0) {
+function room_review_report(
+    PDO $pdo,
+    int $roomId,
+    int $reportId,
+    string $status,
+    bool $isAdmin,
+    int $reviewerId
+): void {
+    if ($reviewerId <= 0 || (!$isAdmin && !admin_user_can($pdo, $reviewerId, 'admin.reports.manage'))) {
         throw new DomainException('A revisão de denúncias é exclusiva da administração.');
     }
     if ($reportId <= 0 || !in_array($status, ['reviewed', 'dismissed'], true)) {

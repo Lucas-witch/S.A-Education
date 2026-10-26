@@ -31,7 +31,8 @@ function institution_live_class_provider(): InstitutionLiveClassProvider {
 function institution_portal_subscription(PDO $pdo, int $institutionId): ?array {
     $statement = $pdo->prepare(
         'SELECT s.plan_code, s.status, s.starts_at, s.expires_at, s.payment_confirmed_at,
-                p.monthly_price, p.institution_type
+                p.monthly_price, p.institution_type,
+                p.institution_member_limit, p.institution_class_limit
          FROM subscriptions s
          INNER JOIN product_plans p ON p.code = s.plan_code
          INNER JOIN instituicoes i ON i.id = s.institution_id
@@ -49,7 +50,11 @@ function institution_portal_subscription(PDO $pdo, int $institutionId): ?array {
                WHEN i.tipo IN ("faculdade", "universidade") AND i.natureza = "particular" THEN "private_university"
                ELSE NULL
            END
-         ORDER BY s.created_at DESC
+           AND NOT EXISTS (
+               SELECT 1 FROM subscriptions newer
+               WHERE newer.institution_id = s.institution_id AND newer.id > s.id
+           )
+         ORDER BY s.created_at DESC, s.id DESC
          LIMIT 1'
     );
     $statement->execute(['institution_id' => $institutionId]);
@@ -142,7 +147,7 @@ function institution_portal_subscription_state(PDO $pdo, int $institutionId, ?ar
                 (expires_at IS NOT NULL AND expires_at <= CURRENT_TIMESTAMP) AS is_expired
          FROM subscriptions
          WHERE institution_id = :institution_id
-         ORDER BY created_at DESC
+         ORDER BY created_at DESC, id DESC
          LIMIT 1'
     );
     $statement->execute(['institution_id' => $institutionId]);
@@ -158,6 +163,9 @@ function institution_portal_subscription_state(PDO $pdo, int $institutionId, ?ar
     }
     if ($subscription['status'] === 'canceled') {
         return 'canceled';
+    }
+    if ($subscription['status'] === 'suspended') {
+        return 'suspended';
     }
     if ($subscription['status'] === 'pending' || $subscription['payment_confirmed_at'] === null) {
         return 'pending';
@@ -402,6 +410,12 @@ function institution_portal_dashboard(PDO $pdo, array $context): array {
             'suspended' => $context['suspended'],
             'subscription_active' => $context['subscription_active'],
             'subscription_state' => $context['subscription_state'],
+            'institution_member_limit' => is_array($context['subscription'])
+                ? $context['subscription']['institution_member_limit']
+                : 0,
+            'institution_class_limit' => is_array($context['subscription'])
+                ? $context['subscription']['institution_class_limit']
+                : 0,
             'role' => $context['role'],
         ],
         'units' => [],
@@ -927,6 +941,31 @@ function institution_portal_handle_action(PDO $pdo, array $context, string $acti
             }
         }
         return institution_portal_transaction($pdo, static function () use ($pdo, $context, $programId, $termId, $input): int {
+            $institutionLockSql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql'
+                ? 'SELECT id FROM instituicoes WHERE id = :institution_id FOR UPDATE'
+                : 'SELECT id FROM instituicoes WHERE id = :institution_id';
+            $institutionLock = $pdo->prepare($institutionLockSql);
+            $institutionLock->execute(['institution_id' => $context['institution_id']]);
+            if (!$institutionLock->fetchColumn()) {
+                throw new PermissionDeniedException('A instituição não está disponível.');
+            }
+
+            $currentSubscription = institution_portal_subscription($pdo, (int) $context['institution_id']);
+            if ($currentSubscription === null) {
+                throw new PermissionDeniedException('A instituição não possui uma assinatura ativa confirmada.');
+            }
+            $classLimit = $currentSubscription['institution_class_limit'];
+            if ($classLimit !== null) {
+                $count = $pdo->prepare(
+                    'SELECT COUNT(*) FROM institution_classes
+                     WHERE institution_id = :institution_id AND status = "active"'
+                );
+                $count->execute(['institution_id' => $context['institution_id']]);
+                if ((int) $count->fetchColumn() >= (int) $classLimit) {
+                    throw new PermissionDeniedException('O plano atingiu o limite de turmas institucionais ativas.');
+                }
+            }
+
             $insert = $pdo->prepare(
                 'INSERT INTO institution_classes
                     (institution_id, program_id, term_id, name, stage_label, grade_label, section)

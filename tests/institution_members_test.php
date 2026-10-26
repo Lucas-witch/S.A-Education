@@ -7,8 +7,8 @@ $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 foreach ([
     'CREATE TABLE usuarios (id INTEGER PRIMARY KEY, perfil TEXT NOT NULL, professor_status TEXT NOT NULL, email TEXT NOT NULL)',
     'CREATE TABLE instituicoes (id INTEGER PRIMARY KEY, usuario_id INTEGER NOT NULL, nome TEXT, validation_status TEXT, tipo TEXT, natureza TEXT)',
-    'CREATE TABLE product_plans (code TEXT PRIMARY KEY, account_type TEXT, tier TEXT, institution_type TEXT, can_create_courses INTEGER, monthly_lesson_limit INTEGER, monthly_material_limit INTEGER, monthly_question_bank_limit INTEGER, questions_per_bank_limit INTEGER, is_enabled INTEGER)',
-    'CREATE TABLE subscriptions (id INTEGER PRIMARY KEY, institution_id INTEGER, user_id INTEGER, plan_code TEXT, status TEXT, payment_confirmed_at TEXT, income_verified_at TEXT, starts_at TEXT, expires_at TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)',
+    'CREATE TABLE product_plans (code TEXT PRIMARY KEY, account_type TEXT, tier TEXT, institution_type TEXT, can_create_courses INTEGER, monthly_lesson_limit INTEGER, monthly_material_limit INTEGER, monthly_question_bank_limit INTEGER, questions_per_bank_limit INTEGER, institution_member_limit INTEGER, institution_class_limit INTEGER, is_enabled INTEGER)',
+    'CREATE TABLE subscriptions (id INTEGER PRIMARY KEY AUTOINCREMENT, institution_id INTEGER, user_id INTEGER, plan_code TEXT, status TEXT, payment_confirmed_at TEXT, income_verified_at TEXT, starts_at TEXT, expires_at TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)',
     'CREATE TABLE institution_members (id INTEGER PRIMARY KEY AUTOINCREMENT, institution_id INTEGER, user_id INTEGER, member_type TEXT, status TEXT DEFAULT "active", joined_at TEXT DEFAULT CURRENT_TIMESTAMP, revoked_at TEXT, UNIQUE(institution_id, user_id))',
     'CREATE TABLE institution_invitations (id INTEGER PRIMARY KEY AUTOINCREMENT, institution_id INTEGER, invited_user_id INTEGER, inviter_user_id INTEGER, member_type TEXT, token_hash TEXT UNIQUE, status TEXT DEFAULT "pending", expires_at TEXT, accepted_at TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)',
     'CREATE TABLE institution_audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, institution_id INTEGER, actor_user_id INTEGER, action TEXT, target_user_id INTEGER, details TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)',
@@ -151,5 +151,12 @@ assert_institution_member(
     (int) $pdo->query("SELECT COUNT(*) FROM institution_invitations WHERE status = 'failed'")->fetchColumn() === 1,
     'Convite não entregue deve ser invalidado e marcado para diagnóstico.'
 );
+
+$pdo->exec("UPDATE product_plans SET institution_member_limit = 1 WHERE code = 'institution-public-school'");
+try {
+    create_institution_invitation($pdo, 10, 1, 'another-student@example.test', 'https://education.example.test', $sendEmail);
+    throw new RuntimeException('O limite de membros precisa impedir convites além da capacidade configurada.');
+} catch (DomainException) {
+}
 
 echo "Institution membership invitation tests passed.\n";
