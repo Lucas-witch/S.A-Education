@@ -2,6 +2,16 @@
 
 Plataforma educacional PHP/MySQL em desenvolvimento. A entrega atual é a **primeira versão de teste**; ela não está aprovada para produção até que sejam concluídas a configuração segura do ambiente e as validações autenticadas descritas abaixo.
 
+## Arquitetura do repositório
+
+- As implementações das páginas Web estão organizadas por módulo em `apps/web/pages/`. Os arquivos PHP na raiz são pontos de compatibilidade que preservam URLs, formulários e redirecionamentos existentes no XAMPP.
+- O projeto continua usando a raiz do repositório como DocumentRoot. Ative `mod_rewrite` e `AllowOverride All` no Apache para que os caminhos públicos `assets/...` sejam atendidos por `apps/web/public/assets/`. A pasta de páginas internas bloqueia acesso HTTP direto; as páginas devem ser acessadas pelos pontos de entrada da raiz.
+- O backend continua compartilhado: `conexao.php`, `includes/` e `api/` mantêm a conexão, autenticação, permissões e regras de domínio usadas pela Web e pela API. A API mobile versionada permanece em `api/v1/`.
+- `mobile/` é um cliente Expo/React Native independente. Ele consome contratos reais da API e não contém credenciais do banco nem cópias das páginas PHP.
+- Migrações e schema permanecem em `db/` para preservar os comandos de implantação e o bootstrap do XAMPP; dados de desenvolvimento ficam em `seed/`, testes PHP em `tests/` e uploads permanecem fora dos recursos estáticos.
+
+Veja o [mapa de módulos e responsabilidades](docs/architecture/monorepo.md) antes de mover outros arquivos ou alterar o DocumentRoot.
+
 ## Recursos nesta versão
 
 - Navegação compartilhada e responsiva com menu lateral.
@@ -15,7 +25,7 @@ Plataforma educacional PHP/MySQL em desenvolvimento. A entrega atual é a **prim
 - Ranking público somente para participantes opt-in, com username público e sem participantes fictícios.
 - Aplicação PHP server-side, PDO e banco MySQL/MariaDB.
 
-Checkout/pagamentos, OAuth e criação/gestão ampla de conteúdos institucionais permanecem indisponíveis. O ranking só mostra participantes para os quais exista pontuação e consentimento; esta versão ainda não define um fluxo completo de pontuação do quiz.
+Checkout/pagamentos, OAuth e criação/gestão ampla de conteúdos institucionais permanecem indisponíveis. O catálogo de planos, limites, benefícios e cancelamento de assinatura está integrado; sem provedor de pagamentos, nenhuma contratação paga ou confirmação financeira é iniciada pela plataforma. O ranking só mostra participantes para os quais exista pontuação e consentimento; esta versão ainda não define um fluxo completo de pontuação do quiz.
 
 ## Requisitos
 
@@ -39,14 +49,22 @@ Checkout/pagamentos, OAuth e criação/gestão ampla de conteúdos institucionai
    & 'C:\xampp\php\php.exe' db\apply_profile_migration.php
    & 'C:\xampp\php\php.exe' db\migrate_security_features.php
    & 'C:\xampp\php\php.exe' db\migrate_permissions.php up
+   & 'C:\xampp\php\php.exe' db\migrate_admin_rbac.php up
    & 'C:\xampp\php\php.exe' db\migrate_institutional_portal.php up
    & 'C:\xampp\php\php.exe' db\migrate_digital_library.php up
    & 'C:\xampp\php\php.exe' db\migrate_user_preferences.php
    & 'C:\xampp\php\php.exe' db\migrate_video_learning.php up
    & 'C:\xampp\php\php.exe' db\migrate_feed_media.php up
    & 'C:\xampp\php\php.exe' db\migrate_question_catalog.php
+   & 'C:\xampp\php\php.exe' db\migrate_admin_console.php up
+   & 'C:\xampp\php\php.exe' db\migrate_feed_catalog.php up
    & 'C:\xampp\php\php.exe' db\migrate_room_communities.php
+   & 'C:\xampp\php\php.exe' db\migrate_plans_system.php up
    ```
+
+   `migrate_plans_system.php` depende de `migrate_permissions.php up`. Ela adiciona nome comercial, descrição, periodicidade, benefícios configuráveis, limites institucionais e metadados de transação/cancelamento sem substituir preços ou dados existentes; também cria o histórico de eventos e registra o estado inicial das assinaturas existentes. Execute-a em banco novo e existente, após backup. A migração é idempotente e não oferece rollback para evitar perda de histórico e configuração.
+
+   O Feed depende de `migrate_feed_media.php up` para os metadados de anexos, de `migrate_admin_console.php up` para `publicacoes.is_official` e das migrações `migrate_institutional_portal.php up` e `migrate_room_communities.php` para as tabelas e colunas usadas na autorização de publicações institucionais e de sala. A migração `migrate_feed_catalog.php up` cria o índice usado pela ordenação e paginação do Feed; ela é idempotente e não altera publicações existentes. O catálogo exige `migrate_question_catalog.php`, que cria as tabelas e o cadastro-base de matérias/etapas sem criar questões de exemplo. Execute estas migrações após o schema-base e com backup; não ative conteúdo estático para contornar migrações pendentes.
 
    Os comandos de rollback destrutivos para estas duas migrações exigem a opção explícita:
 
@@ -65,13 +83,22 @@ Defina `APP_ENV=production`, `APP_BASE_URL` em HTTPS, credenciais específicas d
 
 Para Gmail, use `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587` e `SMTP_ENCRYPTION=tls`. Ative a verificação em duas etapas na conta Google e gere uma senha de app para `SMTP_PASSWORD`; use o endereço completo da conta em `SMTP_USERNAME` e `SMTP_FROM_EMAIL`. Configure esses valores no ambiente do Apache e reinicie o serviço. Não use a senha normal da conta nem compartilhe a senha de app no chat ou no repositório. Se o envio de um convite falhar, ele é marcado como não enviado e a tela exibe o erro; não é criado um vínculo de membro sem aceite.
 
-Para designar a conta administradora, crie uma conta normal e confirme seu `usuarios.id` no banco (`SELECT id, username FROM usuarios WHERE username = 'usuario_escolhido'`). Defina `APP_ADMIN_USER_ID` com esse ID no ambiente do Apache, fora do código-fonte, e reinicie o serviço. A autoridade administrativa deriva somente desse ID; a conta recebe acesso administrativo sem simular pagamento e pode acessar o painel em `admin-permissoes.php`. Use apenas um ID de uma conta cuja titularidade você confirmou. Após configurar, encerre e inicie a sessão administrativa novamente.
+Após as migrações, crie uma conta comum com credenciais individuais e confirme sua titularidade e `usuarios.id` (`SELECT id, username, perfil FROM usuarios WHERE username = 'usuario_escolhido'`). Em shell local controlado, atribua a função inicial sem criar senha padrão ou expor um formulário público:
 
-O painel administrativo revisa perfis docentes e instituições com justificativas registradas na auditoria, permite alterar preços, limites e disponibilidade no catálogo `product_plans`, consulta assinaturas e referências/estados recebidos do sistema financeiro e mostra as últimas ações administrativas. Esta tela não cria pagamentos nem ativa assinaturas. Professores aprovados podem receber uma permissão separada, concedida pelo administrador e registrada em auditoria, para produzir publicações oficiais; isso não os torna administradores. A autoria permanece vinculada à conta que publicou. As publicações oficiais usam o Feed existente, têm selo de identificação e guardam snapshots de criação, edição e arquivamento. Materiais da biblioteca continuam usando a revisão existente em `admin-biblioteca-revisao.php`.
+```powershell
+$userId = 123 # Substitua pelo usuarios.id verificado da conta escolhida.
+& 'C:\xampp\php\php.exe' db\provision_admin.php grant $userId platform_admin
+```
+
+O comando solicita um motivo e confirmação literal `CONFIRMAR`, exige conta existente de estudante ou professor e grava evento de auditoria de origem CLI. Não passe senhas pelo terminal. A conta continuará usando o login normal e não receberá Premium por causa da função. Opcionalmente, configure `APP_ADMIN_USER_ID` para uma conta confirmada no ambiente do servidor: esse ID é o superadministrador de recuperação, com acesso integral e independente das atribuições RBAC. Mantenha esse segredo operacional fora do código. O painel de funções fica em `admin-acessos.php`; a administração principal fica em `admin.php`.
+
+O RBAC possui funções `platform_admin`, `moderator`, `content_reviewer` e `auditor`, com permissões verificadas em cada página e operação protegida. O superadministrador pode atribuir funções administrativas pelo painel; somente o ID configurado em `APP_ADMIN_USER_ID` pode conceder `platform_admin` pelo painel. Moderadores revisam denúncias de salas e podem ocultar publicações denunciadas, com justificativa; revisores analisam a fila da Biblioteca e gerenciam conteúdo oficial; auditores leem os registros administrativos. O painel principal mantém as operações globais de usuários/instituições, planos, assinaturas e auditoria restritas a `platform_admin` ou `APP_ADMIN_USER_ID`. A conta institucional não pode receber função administrativa. O painel calcula indicadores das tabelas existentes, sem valores demonstrativos. A autoria de questões/categorias oficiais, bloqueios gerais de conta, notificações de decisão e recurso de moderação ainda não têm fluxos próprios nesta versão; o catálogo de questões continua exibindo somente conjuntos públicos publicados já existentes.
+
+O painel revisa perfis docentes e instituições com justificativas registradas na auditoria, permite cadastrar e editar nomes, descrições, benefícios, periodicidade, preços, limites e disponibilidade no catálogo `product_plans`, e consulta assinaturas e seu histórico. Limites institucionais de membros/convites e turmas são validados no servidor; não há armazenamento institucional centralizado com quota implementada. Nenhuma ação administrativa confirma pagamento ou ativa Premium. A conta pode cancelar sua própria assinatura pendente/ativa; o cancelamento é imediato, registrado e impede que uma assinatura anterior volte a conceder acesso. O acesso é resolvido no servidor a partir da assinatura mais recente, confirmada, ativa, vigente e compatível com o tipo de conta. Confirme preços herdados do catálogo antes de qualquer lançamento; preços não são definidos pelo código de interface. Sem credenciais, SDK e endpoint de webhook de um provedor, contratação e renovação pagas permanecem indisponíveis. Professores aprovados podem receber uma permissão separada, concedida pelo administrador e registrada em auditoria, para produzir publicações oficiais; isso não os torna administradores. A autoria permanece vinculada à conta que publicou. As publicações oficiais usam o Feed existente, têm selo de identificação e guardam snapshots de criação, edição e arquivamento. Materiais da biblioteca continuam usando a revisão existente em `admin-biblioteca-revisao.php`.
 
 Após backup, aplique `php db/migrate_admin_console.php up` antes de usar a produção de conteúdo oficial. A migração acrescenta `publicacoes.is_official` (com valor inicial falso para conteúdo antigo) e cria `official_content_history`, `official_content_editors` e o registro interno de propriedade `admin_console_migration_objects`. Ela não reescreve publicações existentes e recusa assumir objetos preexistentes sem registro de propriedade válido. O rollback exige backup e `php db/migrate_admin_console.php down --confirm-data-loss`; ele apaga os marcadores oficiais, o histórico, a lista de editores e o registro da migração, mas mantém as publicações. O DDL MariaDB/MySQL não é atômico; valide primeiro em uma cópia do banco.
 
-`admin-sandbox.php` fornece uma pré-visualização administrativa de permissões com planos reais do catálogo, incluindo perfis pendentes, planos gratuitos/Premium e categorias institucionais. É deliberadamente somente leitura: não impersona uma sessão da aplicação nem habilita ações de escrita, não muda a sessão de permissões do administrador e não cria assinaturas, transações ou comprovantes. Cada início, troca e encerramento é auditado; a sessão de simulação expira após 30 minutos. Use homologação com dados fictícios para testar operações destrutivas ou o comportamento completo de páginas como outro perfil. A autorização administrativa ampla continua restrita ao ID configurado; não há delegação genérica de administradores.
+`admin-sandbox.php` fornece uma pré-visualização administrativa de permissões com planos reais do catálogo, incluindo perfis pendentes, planos gratuitos/Premium e categorias institucionais. É deliberadamente somente leitura: não impersona uma sessão da aplicação nem habilita ações de escrita, não muda a sessão de permissões do administrador e não cria assinaturas, transações ou comprovantes. Cada início, troca e encerramento é auditado; a sessão de simulação expira após 30 minutos. Use homologação com dados fictícios para testar operações destrutivas ou o comportamento completo de páginas como outro perfil. As alterações em funções administrativas ficam em tabelas próprias e também na auditoria administrativa; reatribuições não alteram contas existentes até ação explícita de um administrador autorizado.
 
 ### Configurações e acessibilidade
 

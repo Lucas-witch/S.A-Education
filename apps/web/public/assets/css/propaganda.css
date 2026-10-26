@@ -117,3 +117,44 @@
   color: var(--muted);
   text-align: center;
 }
+
+.plans-state.is-error {
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.plans-state.is-success {
+  border-color: rgba(var(--green-rgb), 0.45);
+  background: var(--green-soft);
+  color: var(--green-deep);
+}
+
+.plan-cancel-form {
+  display: flex;
+  justify-content: center;
+  margin: 0 auto 24px;
+}
+
+.plan-availability {
+  margin: auto 0 0;
+  padding-top: 18px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.plan-unavailable {
+  margin-top: 18px;
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.plans-settings-link {
+  margin: 24px 0 0;
+  text-align: center;
+  font-weight: 700;
+}
+
+.plans-settings-link a {
+  color: var(--purple);
+}

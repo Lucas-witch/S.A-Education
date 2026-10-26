@@ -1,5 +1,10 @@
 Options -Indexes
 
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^assets/(.*)$ apps/web/public/assets/$1 [L]
+</IfModule>
+
 <IfModule mod_authz_core.c>
     <FilesMatch "^\.env(?:\..*)?$">
         Require all denied

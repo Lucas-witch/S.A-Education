@@ -355,6 +355,52 @@ $officialAuthor = $pdo->query('SELECT usuario_id FROM publicacoes WHERE id = ' .
 assert_feed((int) $officialAuthor === 5, 'Edição administrativa mantém a autoria real do professor produtor.');
 admin_set_official_content_editor($pdo, 5, false);
 assert_feed(!admin_user_can_manage_official_content($pdo, 5), 'Revogação remove imediatamente permissão de produção oficial.');
+
+$searchableLessonId = feed_create_publication($pdo, 1, [
+    'kind' => 'free_lesson',
+    'title' => 'Aula de biomas',
+    'content' => 'Estudo com #biomasbrasileiros',
+    'visibility' => 'publica',
+    'video_url' => 'https://media.example.test/biomas.mp4',
+    'subject' => 'Ciências da Natureza',
+    'topic' => 'Ecologia tropical',
+    'subtopic' => 'Biomas brasileiros',
+    'course_title' => 'Ecologia de campo',
+]);
+foreach ([
+    '#biomasbrasileiros',
+    'Ciências da Natureza',
+    'Ecologia tropical',
+    'Biomas brasileiros',
+    'autora',
+] as $term) {
+    $searchResults = feed_list_publications($pdo, 2, false, $term, '', '');
+    assert_feed(
+        in_array($searchableLessonId, array_map('intval', array_column($searchResults, 'id')), true),
+        'A busca do Feed deve localizar hashtags, disciplina, tema, assunto e username.'
+    );
+}
+
+for ($index = 1; $index <= 42; $index++) {
+    feed_create_publication($pdo, 1, [
+        'kind' => 'post',
+        'title' => 'Publicação paginada ' . $index,
+        'content' => 'Conteúdo de paginação ' . $index,
+        'visibility' => 'publica',
+    ]);
+}
+$pageOneHasMore = false;
+$pageTwoHasMore = false;
+$pageThreeHasMore = false;
+$feedPageOne = feed_list_publications($pdo, 2, false, 'Publicação paginada', '', '', 20, null, 1, $pageOneHasMore);
+$feedPageTwo = feed_list_publications($pdo, 2, false, 'Publicação paginada', '', '', 20, null, 2, $pageTwoHasMore);
+$feedPageThree = feed_list_publications($pdo, 2, false, 'Publicação paginada', '', '', 20, null, 3, $pageThreeHasMore);
+assert_feed(
+    count($feedPageOne) === 20 && $pageOneHasMore
+        && count($feedPageTwo) === 20 && $pageTwoHasMore
+        && count($feedPageThree) === 2 && !$pageThreeHasMore,
+    'A paginação deve usar páginas estáveis e indicar corretamente quando há resultados seguintes.'
+);
 putenv('APP_ADMIN_USER_ID');
 
-echo "OK: publicação, edição, arquivamento, gratuidade, curtida, salvamento, comentários e autorização do Feed validados.\n";
+echo "OK: publicação, edição, arquivamento, busca, paginação, gratuidade, interações e autorização do Feed validados.\n";

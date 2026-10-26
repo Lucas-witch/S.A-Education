@@ -77,7 +77,7 @@ function admin_user_can_manage_official_content(PDO $pdo, int $userId): bool {
     if ($userId <= 0) {
         return false;
     }
-    if (is_admin_user() && $userId === (int) ($_SESSION['usuario_id'] ?? 0)) {
+    if (admin_user_can($pdo, $userId, 'admin.content.official')) {
         return true;
     }
     $query = $pdo->prepare(
@@ -187,7 +187,7 @@ function admin_record_official_content_history(
         'action' => $action,
         'snapshot' => json_encode($snapshot, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
     ]);
-    if (is_admin_user()) {
+    if (admin_user_has_any_role($pdo, $actorId)) {
         record_admin_action($pdo, 'official_content_' . $action, 'publication', $publicationId);
     }
 }
@@ -240,7 +240,8 @@ function admin_update_official_content(PDO $pdo, int $publicationId, array $inpu
     $publication = $existing->fetch(PDO::FETCH_ASSOC);
     if (
         !is_array($publication)
-        || ((int) $publication['usuario_id'] !== $actorId && !is_admin_user())
+        || ((int) $publication['usuario_id'] !== $actorId
+            && !admin_user_can($pdo, $actorId, 'admin.content.official'))
     ) {
         throw new DomainException('Conteúdo oficial indisponível para alteração.');
     }
@@ -279,7 +280,7 @@ function admin_archive_official_content(PDO $pdo, int $publicationId): void {
     );
     $existing->execute(['id' => $publicationId]);
     $ownerId = $existing->fetchColumn();
-    if (!$ownerId || ((int) $ownerId !== $actorId && !is_admin_user())) {
+    if (!$ownerId || ((int) $ownerId !== $actorId && !admin_user_can($pdo, $actorId, 'admin.content.official'))) {
         throw new DomainException('Conteúdo oficial indisponível para arquivamento.');
     }
     $snapshot = feed_get_publication($pdo, $publicationId, $actorId, true);

@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'sa-education-static-';
-const CACHE_NAME = `${CACHE_PREFIX}v10`;
+const CACHE_NAME = `${CACHE_PREFIX}v11`;
 const APP_BASE = new URL('./', self.location.href);
 const STATIC_ASSETS = [
     'manifest.json',
@@ -17,8 +17,6 @@ const STATIC_ASSETS = [
     'assets/js/sidebar.js',
     'assets/js/perfil.js',
     'assets/js/feed.js',
-    'assets/images/logo-app.png',
-    'assets/images/logo-app-192.png',
     'assets/images/logo-app-512.png',
     'assets/images/icons/user-icon.png',
     'assets/images/icons/home (1).png',

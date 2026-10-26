@@ -1,0 +1,73 @@
+<?php
+declare(strict_types=1);
+require_once SA_PROJECT_ROOT . '/includes/helpers.php';
+session_configure_security();
+session_start();
+send_private_no_store_headers();
+
+if (isset($_SESSION['usuario_id'])) {
+    header('Location: perfil-dashboard.php');
+    exit;
+}
+if (isset($_SESSION['instituicao_usuario_id'])) {
+    header('Location: instituicao-dashboard.php');
+    exit;
+}
+
+$erro = $_SESSION['erro_login'] ?? '';
+$sucesso = $_SESSION['sucesso'] ?? '';
+unset($_SESSION['erro_login'], $_SESSION['sucesso']);
+require_once SA_PROJECT_ROOT . '/includes/helpers.php';
+?>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S.A Education | Entrar</title>
+    <link rel="stylesheet" href="assets/css/estilo.css">
+    <link rel="stylesheet" href="assets/css/login-cadastro.css">
+</head>
+<body>
+<main class="form-page">
+    <section class="form-card login-card">
+        <a class="back" href="index.php">←</a>
+
+        <div class="page-title">
+            <div class="login-icon"><img src="assets/images/logo-app-512.png" alt="S.A Education" width="180" height="180"></div>
+            <h1>Seja bem vindo!</h1>
+            <span>Entre na sua conta para continuar aprendendo.</span>
+        </div>
+
+        <?php if ($erro): ?>
+            <div class="alert error"><?= htmlspecialchars($erro) ?></div>
+        <?php endif; ?>
+
+        <?php if ($sucesso): ?>
+            <div class="alert success"><?= htmlspecialchars($sucesso) ?></div>
+        <?php endif; ?>
+
+        <form action="processa_login.php" method="POST" autocomplete="on">
+            <?php echo '<input type="hidden" name="csrf" value="' . esc(csrf_token()) . '">'; ?>
+            <label>E-mail ou nome de usuário:
+                <input type="text" name="login" placeholder="Digite seu e-mail ou usuário" required autofocus>
+            </label>
+
+            <label>Senha:
+                <input type="password" name="senha" placeholder="Digite sua senha" required>
+            </label>
+
+            <div class="form-row">
+                <a href="redefinir-senha.php" class="small-link">Esqueci minha senha</a>
+            </div>
+
+            <button class="btn btn-primary" type="submit">Entrar</button>
+        </form>
+
+        <p class="switch">Ainda não possui uma conta? <a href="cadastro.php">Criar conta</a></p>
+        <p class="switch">Acesso para instituições? <a href="login-instituicao.php">Entrar como instituição</a></p>
+    </section>
+</main>
+<script src="assets/js/app.js"></script>
+</body>
+</html>

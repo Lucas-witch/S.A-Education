@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/admin_rbac.php';
 
 class PermissionDeniedException extends DomainException {}
 
@@ -49,6 +50,8 @@ function resolve_account_permissions(PDO $pdo, int $userId): array {
             'monthly_material_limit' => null,
             'monthly_question_bank_limit' => null,
             'questions_per_bank_limit' => null,
+            'institution_member_limit' => null,
+            'institution_class_limit' => null,
         ];
     }
 
@@ -77,7 +80,8 @@ function resolve_account_permissions(PDO $pdo, int $userId): array {
     if ($profile === 'instituicao' && $institutionId !== null && $institutionType !== null) {
         $subscriptionQuery = $pdo->prepare(
             'SELECT s.plan_code, p.tier, p.can_create_courses, p.monthly_lesson_limit,
-                    p.monthly_material_limit, p.monthly_question_bank_limit, p.questions_per_bank_limit
+                    p.monthly_material_limit, p.monthly_question_bank_limit, p.questions_per_bank_limit,
+                    p.institution_member_limit, p.institution_class_limit
              FROM subscriptions s
              INNER JOIN product_plans p ON p.code = s.plan_code
              WHERE s.institution_id = :institution_id
@@ -88,6 +92,10 @@ function resolve_account_permissions(PDO $pdo, int $userId): array {
                AND (s.starts_at IS NULL OR s.starts_at <= CURRENT_TIMESTAMP)
                AND (s.expires_at IS NULL OR s.expires_at > CURRENT_TIMESTAMP)
                AND p.is_enabled = 1
+               AND NOT EXISTS (
+                   SELECT 1 FROM subscriptions newer
+                   WHERE newer.institution_id = s.institution_id AND newer.id > s.id
+               )
              ORDER BY s.created_at DESC
              LIMIT 1'
         );
@@ -108,6 +116,10 @@ function resolve_account_permissions(PDO $pdo, int $userId): array {
                AND p.is_enabled = 1
                AND p.account_type = :account_type
                AND (p.requires_income_verification = 0 OR s.income_verified_at IS NOT NULL)
+               AND NOT EXISTS (
+                   SELECT 1 FROM subscriptions newer
+                   WHERE newer.user_id = s.user_id AND newer.id > s.id
+               )
              ORDER BY s.created_at DESC
              LIMIT 1'
         );
@@ -146,7 +158,8 @@ function resolve_account_permissions(PDO $pdo, int $userId): array {
     }
 
     $premium = $approved && $institutionValidated && is_array($subscription);
-    $active = $approved && $institutionValidated;
+    $active = $approved && $institutionValidated
+        && ($profile !== 'instituicao' || is_array($subscription));
     $readLimit = static fn (string $key): ?int => !$active
         ? 0
         : (isset($plan[$key]) && $plan[$key] !== '' ? (int) $plan[$key] : null);
@@ -165,6 +178,8 @@ function resolve_account_permissions(PDO $pdo, int $userId): array {
         'monthly_material_limit' => $readLimit('monthly_material_limit'),
         'monthly_question_bank_limit' => $readLimit('monthly_question_bank_limit'),
         'questions_per_bank_limit' => $readLimit('questions_per_bank_limit'),
+        'institution_member_limit' => $profile === 'instituicao' ? $readLimit('institution_member_limit') : null,
+        'institution_class_limit' => $profile === 'instituicao' ? $readLimit('institution_class_limit') : null,
     ];
 }
 
@@ -294,15 +309,18 @@ function refresh_user_permission_session(PDO $pdo, int $userId): array {
     return $permissions;
 }
 
-function require_admin_permission(): void {
-    if (!is_admin_user()) {
+function require_admin_permission(string $permission = 'admin.dashboard.view'): void {
+    global $pdo;
+    $userId = filter_var($_SESSION['usuario_id'] ?? null, FILTER_VALIDATE_INT);
+    if ($userId === false || $userId <= 0 || !admin_user_can($pdo, $userId, $permission)) {
         http_response_code(403);
-        throw new DomainException('Ação exclusiva da administração.');
+        throw new DomainException('Você não possui permissão para esta operação administrativa.');
     }
 }
 
 function record_admin_action(PDO $pdo, string $action, string $targetType, ?int $targetId, array $details = []): void {
-    if (!is_admin_user()) {
+    $actorId = (int) ($_SESSION['usuario_id'] ?? 0);
+    if (!admin_user_has_any_role($pdo, $actorId)) {
         throw new DomainException('Ação administrativa não autorizada.');
     }
     $statement = $pdo->prepare(
@@ -310,7 +328,7 @@ function record_admin_action(PDO $pdo, string $action, string $targetType, ?int 
          VALUES (:actor_user_id, :action, :target_type, :target_id, :details)'
     );
     $statement->execute([
-        'actor_user_id' => (int) $_SESSION['usuario_id'],
+        'actor_user_id' => $actorId,
         'action' => $action,
         'target_type' => $targetType,
         'target_id' => $targetId,

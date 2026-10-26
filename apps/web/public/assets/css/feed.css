@@ -150,6 +150,8 @@
 .feed-form-status, .feed-status { min-height: 22px; color: var(--muted); font-size: 13px; }
 .feed-state { padding: 22px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--muted); }
 .feed-state-error { border-color: var(--danger-border); color: var(--danger); }
+.feed-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 18px 0; }
+.feed-pagination span { color: var(--muted); font-size: 13px; }
 .feed-list { display: grid; gap: 16px; }
 .feed-card { padding: 18px; }
 .feed-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
@@ -201,6 +203,7 @@
 }
 
 @media (max-width: 800px) {
+  .feed-pagination { justify-content: flex-start; }
   .feed-layout { grid-template-columns: minmax(0, 1fr); }
   .feed-discovery { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

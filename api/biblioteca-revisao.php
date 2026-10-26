@@ -8,7 +8,7 @@ require_once __DIR__ . '/../includes/permissions.php';
 
 try {
     require_auth();
-    require_admin_permission();
+    require_admin_permission('admin.library.review');
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         header('Allow: POST');
         http_response_code(405);

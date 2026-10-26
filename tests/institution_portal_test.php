@@ -16,7 +16,8 @@ $schema = [
         validation_status TEXT
     )',
     'CREATE TABLE product_plans (
-        code TEXT PRIMARY KEY, account_type TEXT, institution_type TEXT, monthly_price NUMERIC, is_enabled INTEGER
+        code TEXT PRIMARY KEY, account_type TEXT, institution_type TEXT, monthly_price NUMERIC,
+        institution_member_limit INTEGER, institution_class_limit INTEGER, is_enabled INTEGER
     )',
     'CREATE TABLE subscriptions (
         id INTEGER PRIMARY KEY, institution_id INTEGER, plan_code TEXT, status TEXT,
@@ -114,7 +115,11 @@ $pdo->exec(
      (100, 1, 'Universidade A', 'universidade', 'publica', 'validated'),
      (200, 2, 'Universidade B', 'universidade', 'publica', 'validated')"
 );
-$pdo->exec("INSERT INTO product_plans VALUES ('public-university', 'institution', 'public_university', 7000, 1)");
+$pdo->exec(
+    "INSERT INTO product_plans
+        (code, account_type, institution_type, monthly_price, institution_class_limit, is_enabled)
+     VALUES ('public-university', 'institution', 'public_university', 7000, 1, 1)"
+);
 $pdo->exec(
     "INSERT INTO subscriptions (id, institution_id, plan_code, status, payment_confirmed_at, starts_at, expires_at)
      VALUES
@@ -151,6 +156,13 @@ $termId = institution_portal_handle_action($pdo, $managerA, 'create_term', [
 $classId = institution_portal_handle_action($pdo, $managerA, 'create_class', [
     'program_id' => (string) $programId, 'term_id' => (string) $termId, 'name' => 'Turma A',
 ]);
+try {
+    institution_portal_handle_action($pdo, $managerA, 'create_class', [
+        'program_id' => (string) $programId, 'term_id' => (string) $termId, 'name' => 'Turma excedente',
+    ]);
+    throw new RuntimeException('O limite de turmas precisa bloquear a criação excedente.');
+} catch (PermissionDeniedException) {
+}
 $subjectId = institution_portal_handle_action($pdo, $managerA, 'create_subject', [
     'name' => 'Disciplina A', 'knowledge_area' => 'Ciências Humanas',
 ]);

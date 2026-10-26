@@ -33,6 +33,61 @@ function institution_assert_owner(PDO $pdo, int $institutionId, int $actorUserId
     return $institution;
 }
 
+function institution_assert_member_capacity(
+    PDO $pdo,
+    int $institutionId,
+    ?int $excludedInvitationId = null,
+    ?int $replacingUserId = null
+): void {
+    $lockSql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql'
+        ? 'SELECT usuario_id FROM instituicoes WHERE id = :institution_id FOR UPDATE'
+        : 'SELECT usuario_id FROM instituicoes WHERE id = :institution_id';
+    $ownerQuery = $pdo->prepare($lockSql);
+    $ownerQuery->execute(['institution_id' => $institutionId]);
+    $ownerUserId = $ownerQuery->fetchColumn();
+    if ($ownerUserId === false) {
+        throw new DomainException('A instituição não foi encontrada.');
+    }
+
+    $permissions = resolve_account_permissions($pdo, (int) $ownerUserId);
+    if (!$permissions['institution_validated'] || !$permissions['premium']) {
+        throw new DomainException('A instituição precisa estar validada e ter assinatura ativa.');
+    }
+    $limit = $permissions['institution_member_limit'] ?? null;
+    if ($limit === null) {
+        return;
+    }
+
+    $invitationConditions = [
+        'institution_id = :invitation_institution_id',
+        'status = "pending"',
+        'expires_at > CURRENT_TIMESTAMP',
+    ];
+    $parameters = [
+        'member_institution_id' => $institutionId,
+        'invitation_institution_id' => $institutionId,
+    ];
+    if ($excludedInvitationId !== null) {
+        $invitationConditions[] = 'id <> :excluded_invitation_id';
+        $parameters['excluded_invitation_id'] = $excludedInvitationId;
+    }
+    if ($replacingUserId !== null) {
+        $invitationConditions[] = 'invited_user_id <> :replacing_user_id';
+        $parameters['replacing_user_id'] = $replacingUserId;
+    }
+    $count = $pdo->prepare(
+        'SELECT
+            (SELECT COUNT(*) FROM institution_members
+             WHERE institution_id = :member_institution_id AND status = "active")
+            +
+            (SELECT COUNT(*) FROM institution_invitations WHERE ' . implode(' AND ', $invitationConditions) . ')'
+    );
+    $count->execute($parameters);
+    if ((int) $count->fetchColumn() >= $limit) {
+        throw new DomainException('O plano atingiu o limite de membros institucionais e convites pendentes.');
+    }
+}
+
 function institution_record_audit(
     PDO $pdo,
     int $institutionId,
@@ -111,6 +166,7 @@ function create_institution_invitation(
 
     $pdo->beginTransaction();
     try {
+        institution_assert_member_capacity($pdo, $institutionId, null, $targetUserId);
         $pdo->prepare(
             'UPDATE institution_invitations
              SET status = "canceled"
@@ -185,6 +241,24 @@ function accept_institution_invitation(PDO $pdo, int $userId, string $token): vo
 
     $pdo->beginTransaction();
     try {
+        $tokenHash = hash('sha256', $token);
+        $invitationHint = $pdo->prepare(
+            'SELECT institution_id FROM institution_invitations WHERE token_hash = :token_hash LIMIT 1'
+        );
+        $invitationHint->execute(['token_hash' => $tokenHash]);
+        $hintedInstitutionId = $invitationHint->fetchColumn();
+        if ($hintedInstitutionId === false) {
+            throw new DomainException('O convite é inválido ou expirou.');
+        }
+        $institutionLockSql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql'
+            ? 'SELECT id FROM instituicoes WHERE id = :institution_id FOR UPDATE'
+            : 'SELECT id FROM instituicoes WHERE id = :institution_id';
+        $institutionLock = $pdo->prepare($institutionLockSql);
+        $institutionLock->execute(['institution_id' => (int) $hintedInstitutionId]);
+        if (!$institutionLock->fetchColumn()) {
+            throw new DomainException('A instituição deste convite não foi encontrada.');
+        }
+
         $lockClause = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
         $query = $pdo->prepare(
             'SELECT ii.id, ii.institution_id, ii.invited_user_id, ii.member_type, ii.status,
@@ -194,7 +268,7 @@ function accept_institution_invitation(PDO $pdo, int $userId, string $token): vo
              WHERE ii.token_hash = :token_hash
              LIMIT 1' . $lockClause
         );
-        $query->execute(['token_hash' => hash('sha256', $token)]);
+        $query->execute(['token_hash' => $tokenHash]);
         $invitation = $query->fetch(PDO::FETCH_ASSOC);
         if (
             !is_array($invitation)
@@ -223,6 +297,7 @@ function accept_institution_invitation(PDO $pdo, int $userId, string $token): vo
         if (!$validType) {
             throw new DomainException('O perfil da conta não pode aceitar este convite.');
         }
+        institution_assert_member_capacity($pdo, $institutionId, (int) $invitation['id']);
 
         $memberQuery = $pdo->prepare(
             'SELECT id FROM institution_members
